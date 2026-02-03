@@ -1,0 +1,12 @@
+node_modules
+.next
+.env
+.env.local
+*.log
+dist
+.DS_Store
+.vercel
+.env.production
+.env.development
+.update_script
+sample.tex
