@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Chunk, ClosureSolution, Graph, Ticket } from "@/lib/types";
+import { Chunk, Graph, Ticket } from "@/lib/types";
 import GraphViewer from "@/app/components/GraphViewer";
 
 type ChannelMeta = {
@@ -18,22 +18,29 @@ type IngestResponse = {
   prompt: string;
   channels: string[];
   messageCount: number;
+  sampledMessageCount?: number;
   ticketCount: number;
+  evidenceMessageCount?: number;
+  updatedAt?: string;
+  newTicketsAdded?: number;
+  oqoqoContextIncluded?: boolean;
+  oqoqoContextError?: string;
   error?: string;
 };
 
-const severityStyles: Record<string, { bg: string; fg: string }> = {
-  low: { bg: "#1f2937", fg: "#e2e8f0" },
-  medium: { bg: "#f59e0b", fg: "#111827" },
-  high: { bg: "#f97316", fg: "#0b1221" },
-  critical: { bg: "#ef4444", fg: "#0b1221" },
+type SeverityStyle = {
+  bg: string;
+  fg: string;
+  border: string;
+  fontWeight?: number;
 };
 
-const chunkListFromClosure = (graph: Graph, closure: ClosureSolution) =>
-  closure.closure
-    .map((id) => graph.chunks[id])
-    .filter(Boolean)
-    .sort((a, b) => b.weight - a.weight);
+const severityStyles: Record<string, SeverityStyle> = {
+  low: { bg: "var(--card-strong)", fg: "#6b7280", border: "var(--border)" },
+  medium: { bg: "var(--card-strong)", fg: "#4b5563", border: "var(--border-strong)" },
+  high: { bg: "var(--card-strong)", fg: "#374151", border: "var(--border-strong)" },
+  critical: { bg: "var(--card-strong)", fg: "#111827", border: "#9ca3af", fontWeight: 600 },
+};
 
 export default function DiscordRunner() {
   const [channels, setChannels] = useState<ChannelMeta[]>([]);
@@ -46,15 +53,14 @@ export default function DiscordRunner() {
   const [windowMinutes, setWindowMinutes] = useState(45);
   const [sampleStrategy, setSampleStrategy] = useState<"recent" | "random">("recent");
   const [useLLM, setUseLLM] = useState(false);
+  const [includeOqoqoContext, setIncludeOqoqoContext] = useState(false);
   const [model, setModel] = useState("gpt-4o-mini");
   const [llmTicketLimit, setLlmTicketLimit] = useState(12);
   const [llmMaxInputChars, setLlmMaxInputChars] = useState(6000);
   const [loading, setLoading] = useState(false);
-  const [solving, setSolving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<IngestResponse | null>(null);
   const [activeChunk, setActiveChunk] = useState<Chunk | null>(null);
-  const [k, setK] = useState(10);
   const [showReasoning, setShowReasoning] = useState(false);
 
   useEffect(() => {
@@ -68,6 +74,18 @@ export default function DiscordRunner() {
     loadChannels().catch(() => setChannels([]));
   }, []);
 
+  useEffect(() => {
+    const loadPersisted = async () => {
+      const res = await fetch("/api/discord/state");
+      if (!res.ok) return;
+      const json = (await res.json()) as IngestResponse;
+      if (json?.tickets?.length) {
+        setResult(json);
+      }
+    };
+    loadPersisted().catch(() => null);
+  }, []);
+
   const selectedChannels = useMemo(() => {
     return channels.filter((c) => selected.has(c.file));
   }, [channels, selected]);
@@ -78,18 +96,10 @@ export default function DiscordRunner() {
     return map;
   }, [result]);
 
-  const [closure, setClosure] = useState<ClosureSolution | null>(null);
-
-  const closureTickets = useMemo(() => {
-    if (!result?.graph || !closure) return [];
-    return chunkListFromClosure(result.graph, closure);
-  }, [result, closure]);
-
   const runIngest = async () => {
     setLoading(true);
     setError(null);
     setResult(null);
-    setClosure(null);
     try {
       const res = await fetch("/api/discord/ingest", {
         method: "POST",
@@ -107,6 +117,7 @@ export default function DiscordRunner() {
           model,
           llmTicketLimit,
           llmMaxInputChars,
+          includeOqoqoContext,
         }),
       });
       const json = (await res.json()) as IngestResponse;
@@ -122,66 +133,53 @@ export default function DiscordRunner() {
     }
   };
 
-  const runSolve = async () => {
-    if (!result?.graph) {
-      setError("Generate tickets first.");
-      return;
-    }
-    setSolving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/closure", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ size: k, graph: result.graph }),
-      });
-      const json = (await res.json()) as { closure?: ClosureSolution; error?: string };
-      if (!res.ok || json.error || !json.closure) {
-        setError(json.error ?? "Closure solve failed.");
-      } else {
-        setClosure(json.closure ?? null);
-      }
-    } catch (err: any) {
-      setError(err?.message ?? "Unknown error.");
-    } finally {
-      setSolving(false);
-    }
-  };
+  const buttonSecondary = {
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: "1px solid var(--border-strong)",
+    background: "#f3f4f6",
+    color: "var(--foreground)",
+    cursor: "pointer",
+  } as const;
+
+  const inputBase = {
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "1px solid var(--border-strong)",
+    background: "var(--card-strong)",
+    color: "var(--foreground)",
+  } as const;
 
   return (
-    <section className="card">
-      <h2 style={{ margin: "0 0 10px 0" }}>Ingest LanceDB Discord exports</h2>
-      <div style={{ display: "grid", gap: 12 }}>
+    <section id="tickets" className="card">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ margin: "0 0 6px 0" }}>Discord ingestion</h2>
+          <div style={{ fontSize: 13, color: "var(--muted)" }}>
+            Sample exported Discord channels and generate structured tickets. Optional OpenAI refinement.
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={() => setSelected(new Set(channels.map((c) => c.file)))}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 8,
-              border: "1px solid #1f2937",
-              background: "#111827",
-              color: "#e2e8f0",
-              cursor: "pointer",
-            }}
-          >
+          <button type="button" onClick={() => setSelected(new Set(channels.map((c) => c.file)))} style={buttonSecondary}>
             Select all
           </button>
-          <button
-            type="button"
-            onClick={() => setSelected(new Set())}
-            style={{
-              padding: "6px 10px",
-              borderRadius: 8,
-              border: "1px solid #1f2937",
-              background: "#111827",
-              color: "#e2e8f0",
-              cursor: "pointer",
-            }}
-          >
+          <button type="button" onClick={() => setSelected(new Set())} style={buttonSecondary}>
             Clear
           </button>
-          <span style={{ opacity: 0.8 }}>
+          <button
+            type="button"
+            onClick={async () => {
+              await fetch("/api/discord/state", { method: "DELETE" });
+              setResult(null);
+            }}
+            style={buttonSecondary}
+          >
+            Clear saved
+          </button>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>
             {selected.size} / {channels.length} channels selected
           </span>
         </div>
@@ -194,9 +192,9 @@ export default function DiscordRunner() {
             maxHeight: 220,
             overflow: "auto",
             padding: 8,
-            border: "1px solid #1f2937",
+            border: "1px solid var(--border)",
             borderRadius: 10,
-            background: "#0b1221",
+            background: "var(--card-strong)",
           }}
         >
           {channels.map((channel) => {
@@ -238,14 +236,7 @@ export default function DiscordRunner() {
               value={maxMessagesTotal}
               min={50}
               onChange={(e) => setMaxMessagesTotal(Number.parseInt(e.target.value, 10) || 0)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 160,
-              }}
+              style={{ ...inputBase, width: 160 }}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -255,14 +246,7 @@ export default function DiscordRunner() {
               value={maxMessagesPerChannel}
               min={10}
               onChange={(e) => setMaxMessagesPerChannel(Number.parseInt(e.target.value, 10) || 0)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 160,
-              }}
+              style={{ ...inputBase, width: 160 }}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -272,14 +256,7 @@ export default function DiscordRunner() {
               value={maxCharsPerMessage}
               min={200}
               onChange={(e) => setMaxCharsPerMessage(Number.parseInt(e.target.value, 10) || 0)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 160,
-              }}
+              style={{ ...inputBase, width: 160 }}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -289,14 +266,7 @@ export default function DiscordRunner() {
               value={maxTickets}
               min={10}
               onChange={(e) => setMaxTickets(Number.parseInt(e.target.value, 10) || 0)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 120,
-              }}
+              style={{ ...inputBase, width: 120 }}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -306,14 +276,7 @@ export default function DiscordRunner() {
               value={maxMessagesPerTicket}
               min={2}
               onChange={(e) => setMaxMessagesPerTicket(Number.parseInt(e.target.value, 10) || 0)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 120,
-              }}
+              style={{ ...inputBase, width: 120 }}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -323,14 +286,7 @@ export default function DiscordRunner() {
               value={windowMinutes}
               min={5}
               onChange={(e) => setWindowMinutes(Number.parseInt(e.target.value, 10) || 0)}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 120,
-              }}
+              style={{ ...inputBase, width: 120 }}
             />
           </label>
           <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -338,13 +294,7 @@ export default function DiscordRunner() {
             <select
               value={sampleStrategy}
               onChange={(e) => setSampleStrategy(e.target.value as "recent" | "random")}
-              style={{
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-              }}
+              style={{ ...inputBase, width: 160 }}
             >
               <option value="recent">Recent</option>
               <option value="random">Random</option>
@@ -357,14 +307,22 @@ export default function DiscordRunner() {
             display: "grid",
             gap: 8,
             padding: 12,
-            border: "1px solid #1f2937",
+            border: "1px solid var(--border)",
             borderRadius: 10,
-            background: "#0f172a",
+            background: "var(--card)",
           }}
         >
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
             <input type="checkbox" checked={useLLM} onChange={() => setUseLLM((prev) => !prev)} />
             Use OpenAI to refine tickets
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={includeOqoqoContext}
+              onChange={() => setIncludeOqoqoContext((prev) => !prev)}
+            />
+            Include doc-analyzer context (~/Desktop/oqoqo)
           </label>
           <div
             style={{
@@ -381,14 +339,7 @@ export default function DiscordRunner() {
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 disabled={!useLLM}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #1f2937",
-                  background: "#0b1221",
-                  color: "#e2e8f0",
-                  width: 180,
-                }}
+                style={{ ...inputBase, width: 180 }}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -399,14 +350,7 @@ export default function DiscordRunner() {
                 min={1}
                 onChange={(e) => setLlmTicketLimit(Number.parseInt(e.target.value, 10) || 0)}
                 disabled={!useLLM}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #1f2937",
-                  background: "#0b1221",
-                  color: "#e2e8f0",
-                  width: 140,
-                }}
+                style={{ ...inputBase, width: 140 }}
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -417,17 +361,10 @@ export default function DiscordRunner() {
                 min={1000}
                 onChange={(e) => setLlmMaxInputChars(Number.parseInt(e.target.value, 10) || 0)}
                 disabled={!useLLM}
-                style={{
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #1f2937",
-                  background: "#0b1221",
-                  color: "#e2e8f0",
-                  width: 160,
-                }}
+                style={{ ...inputBase, width: 160 }}
               />
             </label>
-            <span style={{ fontSize: 12, opacity: 0.7, alignSelf: "flex-end" }}>
+            <span style={{ fontSize: 12, color: "var(--muted)", alignSelf: "flex-end" }}>
               Requires OPENAI_API_KEY in the server environment.
             </span>
           </div>
@@ -441,16 +378,16 @@ export default function DiscordRunner() {
             style={{
               padding: "10px 16px",
               borderRadius: 10,
-              border: "1px solid #1f2937",
-              background: "#0ea5e9",
-              color: "#0b1221",
+              border: "1px solid var(--accent)",
+              background: "var(--accent)",
+              color: "var(--accent-contrast)",
               fontWeight: 600,
               cursor: "pointer",
             }}
           >
             {loading ? "Working..." : "Generate tickets"}
           </button>
-          <span style={{ opacity: 0.7 }}>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>
             {selectedChannels.length > 0
               ? `Using ${selectedChannels.length} channels (${selectedChannels
                   .slice(0, 3)
@@ -461,72 +398,51 @@ export default function DiscordRunner() {
         </div>
       </div>
 
-      {error ? <div style={{ color: "#fca5a5", marginTop: 12 }}>{error}</div> : null}
+      {error ? <div style={{ color: "#b91c1c", marginTop: 12 }}>{error}</div> : null}
 
       {result ? (
         <div className="grid" style={{ gap: 16, marginTop: 16 }}>
-          <GraphViewer
-            graph={result.graph}
-            selectedIds={closure ? new Set(closure.closure) : undefined}
-            onSelectChunk={(chunk) => setActiveChunk(chunk)}
-          />
+          <div id="graph">
+            <GraphViewer
+              graph={result.graph}
+              onSelectChunk={(chunk) => setActiveChunk(chunk)}
+            />
+          </div>
 
-          <div className="card" style={{ background: "#0f172a" }}>
+          <div className="card" style={{ background: "var(--card)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
               <div>
                 <strong>Channels:</strong> {result.channels.join(", ")}
               </div>
               <div>
-                <strong>Messages:</strong> {result.messageCount} | <strong>Tickets:</strong>{" "}
+                <strong>Messages:</strong> {result.messageCount}
+                {typeof result.sampledMessageCount === "number" ? (
+                  <span style={{ marginLeft: 8, color: "var(--muted)", fontSize: 12 }}>(sampled {result.sampledMessageCount})</span>
+                ) : null}
+                | <strong>Tickets:</strong>{" "}
                 {result.ticketCount}
+                {typeof result.newTicketsAdded === "number" ? (
+                  <span style={{ marginLeft: 8, color: "var(--muted)", fontSize: 12 }}>(+{result.newTicketsAdded} new)</span>
+                ) : null}
               </div>
+              {result.updatedAt ? (
+                <div style={{ fontSize: 12, color: "var(--muted)" }}>Last saved: {new Date(result.updatedAt).toLocaleString()}</div>
+              ) : null}
+              {typeof result.oqoqoContextIncluded === "boolean" || result.oqoqoContextError ? (
+                <div style={{ fontSize: 12, color: result.oqoqoContextError ? "#b91c1c" : "var(--muted)" }}>
+                  <strong>Doc-analyzer context:</strong>{" "}
+                  {result.oqoqoContextError
+                    ? `unavailable (${result.oqoqoContextError})`
+                    : result.oqoqoContextIncluded
+                      ? "included"
+                      : "not included"}
+                </div>
+              ) : null}
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <input
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={k > 0 ? String(k) : ""}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "") {
-                  setK(0);
-                  return;
-                }
-                const parsed = Number.parseInt(val, 10);
-                if (!Number.isNaN(parsed) && parsed > 0) {
-                  setK(parsed);
-                }
-              }}
-              style={{
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
-                width: 120,
-              }}
-              placeholder="Enter k"
-              disabled={solving}
-            />
-            <button
-              type="button"
-              disabled={solving}
-              onClick={runSolve}
-              style={{
-                padding: "10px 16px",
-                borderRadius: 10,
-                border: "1px solid #1f2937",
-                background: "#111827",
-                color: "#e2e8f0",
-                fontWeight: 600,
-                cursor: solving ? "wait" : "pointer",
-              }}
-            >
-              {solving ? "Solving..." : "Solve closure"}
-            </button>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--muted)" }}>
               <input
                 type="checkbox"
                 checked={showReasoning}
@@ -536,59 +452,6 @@ export default function DiscordRunner() {
             </label>
           </div>
 
-          {closure ? (
-            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
-              {closureTickets.map((chunk) => {
-                const ticket = ticketsById.get(chunk.id);
-                const severity = ticket?.severity ?? "low";
-                const style = severityStyles[severity] ?? severityStyles.low;
-                return (
-                  <div
-                    key={chunk.id}
-                    className="card"
-                    style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 220 }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <span
-                        style={{
-                          background: style.bg,
-                          color: style.fg,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: 11,
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        {severity}
-                      </span>
-                      <span style={{ fontSize: 12, opacity: 0.7 }}>{ticket?.docCoverage ?? "unknown"}</span>
-                    </div>
-                    <h3 style={{ margin: "4px 0 0 0", lineHeight: 1.3 }}>{chunk.title}</h3>
-                    <p
-                      style={{
-                        marginTop: 4,
-                        opacity: 0.85,
-                        lineHeight: 1.45,
-                        display: "-webkit-box",
-                        WebkitLineClamp: 5,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {chunk.summary}
-                    </p>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>Evidence: {ticket?.evidence.length ?? 0}</div>
-                    {showReasoning && ticket?.reasoning ? (
-                      <p style={{ fontSize: 12, opacity: 0.7 }}>{ticket.reasoning}</p>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p style={{ opacity: 0.8 }}>Solve closure to view the top-k ticket details.</p>
-          )}
-
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
             {result.tickets.map((ticket) => {
               const style = severityStyles[ticket.severity] ?? severityStyles.low;
@@ -596,7 +459,7 @@ export default function DiscordRunner() {
                 <div
                   key={ticket.id}
                   className="card"
-                  style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 240 }}
+                  style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 240, background: "var(--card)" }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                     <span
@@ -607,25 +470,27 @@ export default function DiscordRunner() {
                         borderRadius: 999,
                         fontSize: 11,
                         textTransform: "uppercase",
+                        border: `1px solid ${style.border}`,
+                        fontWeight: style.fontWeight ?? 500,
                       }}
                     >
                       {ticket.severity}
                     </span>
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>{ticket.docCoverage}</span>
+                    <span style={{ fontSize: 12, color: "var(--muted)" }}>{ticket.docCoverage}</span>
                   </div>
                   <h3 style={{ margin: "4px 0 0 0", lineHeight: 1.3 }}>{ticket.title}</h3>
-                  <p style={{ marginTop: 4, opacity: 0.85, lineHeight: 1.45 }}>{ticket.summary}</p>
+                  <p style={{ marginTop: 4, color: "rgba(26, 26, 26, 0.85)", lineHeight: 1.45 }}>{ticket.summary}</p>
                   {ticket.affectedItems?.length ? (
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
                       Affected: {ticket.affectedItems.slice(0, 2).join(", ")}
                     </div>
                   ) : null}
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>Evidence</div>
-                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, opacity: 0.8 }}>
+                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Evidence</div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "rgba(26, 26, 26, 0.85)" }}>
                     {ticket.evidence.slice(0, 3).map((ev) => (
                       <li key={ev.messageId}>
                         {ev.url ? (
-                          <a href={ev.url} target="_blank" rel="noreferrer" style={{ color: "#38bdf8" }}>
+                          <a href={ev.url} target="_blank" rel="noreferrer" style={{ color: "var(--link)" }}>
                             {ev.channel}: {ev.snippet}
                           </a>
                         ) : (
@@ -635,17 +500,17 @@ export default function DiscordRunner() {
                     ))}
                   </ul>
                   {showReasoning && ticket.reasoning ? (
-                    <p style={{ fontSize: 12, opacity: 0.7 }}>{ticket.reasoning}</p>
+                    <p style={{ fontSize: 12, color: "var(--muted)" }}>{ticket.reasoning}</p>
                   ) : null}
                 </div>
               );
             })}
           </div>
 
-          <div className="card" style={{ background: "#0f172a" }}>
+          <div id="prompt" className="card" style={{ background: "var(--card)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
               <strong>LLM prompt</strong>
-              <span style={{ fontSize: 12, opacity: 0.7 }}>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>
                 Includes background reasoning for downstream analysis.
               </span>
             </div>
@@ -658,9 +523,9 @@ export default function DiscordRunner() {
                 minHeight: 200,
                 padding: 12,
                 borderRadius: 10,
-                border: "1px solid #1f2937",
-                background: "#0b1221",
-                color: "#e2e8f0",
+                border: "1px solid var(--border-strong)",
+                background: "var(--card-strong)",
+                color: "var(--foreground)",
                 fontSize: 12,
                 lineHeight: 1.5,
               }}
@@ -668,7 +533,7 @@ export default function DiscordRunner() {
           </div>
         </div>
       ) : (
-        <p style={{ opacity: 0.8, marginTop: 12 }}>Select channels and generate tickets.</p>
+        <p style={{ color: "var(--muted)", marginTop: 12 }}>Select channels and generate tickets.</p>
       )}
 
       {activeChunk ? (
@@ -676,7 +541,7 @@ export default function DiscordRunner() {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.65)",
+            background: "rgba(0,0,0,0.35)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -690,15 +555,16 @@ export default function DiscordRunner() {
               maxWidth: 560,
               maxHeight: "80vh",
               overflow: "auto",
-              background: "#0f172a",
+              background: "var(--card-strong)",
+              boxShadow: "var(--shadow-lg)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: 12, opacity: 0.7, textTransform: "uppercase" }}>
+            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase" }}>
               {activeChunk.sourceType}
             </div>
             <h3 style={{ margin: "4px 0 0 0", lineHeight: 1.3 }}>{activeChunk.title}</h3>
-            <p style={{ marginTop: 8, opacity: 0.85, lineHeight: 1.45 }}>{activeChunk.summary}</p>
+            <p style={{ marginTop: 8, color: "rgba(26, 26, 26, 0.85)", lineHeight: 1.45 }}>{activeChunk.summary}</p>
             {activeChunk.ticket ? (
               <div style={{ marginTop: 12, fontSize: 13 }}>
                 <div>
@@ -713,7 +579,7 @@ export default function DiscordRunner() {
                   </div>
                 ) : null}
                 {showReasoning && activeChunk.ticket.reasoning ? (
-                  <p style={{ marginTop: 8, opacity: 0.8 }}>{activeChunk.ticket.reasoning}</p>
+                  <p style={{ marginTop: 8, color: "var(--muted)" }}>{activeChunk.ticket.reasoning}</p>
                 ) : null}
               </div>
             ) : null}
@@ -733,7 +599,7 @@ export default function DiscordRunner() {
                 href={activeChunk.sourceRef}
                 target="_blank"
                 rel="noreferrer"
-                style={{ display: "block", marginTop: 12, color: "#38bdf8" }}
+                style={{ display: "block", marginTop: 12, color: "var(--link)" }}
               >
                 View evidence
               </a>

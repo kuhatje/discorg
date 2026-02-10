@@ -2,21 +2,23 @@ import DiscordRunner from "@/app/components/DiscordRunner";
 
 export default function HomePage() {
   return (
-    <main className="grid" style={{ gap: 20 }}>
-      {/* <header className="card" style={{ background: "linear-gradient(135deg, #0ea5e9, #38bdf8)" }}>
-        <h1 style={{ margin: 0, color: "#0b1221" }}>Discord Ticket Triage</h1>
-        <p style={{ marginTop: 8, color: "#0b1221" }}>
-          This prototype ingests the LanceDB Discord export, samples a bounded subset of messages,
-          and turns them into structured tickets with evidence, severity, and documentation coverage.
-        </p>
-        <p style={{ marginTop: 12, color: "#0b1221" }}>
-          Tickets are placed in a directed graph (edges optional), with an optimal-closure solver
-          kept in the background for later use. The output includes an LLM-ready prompt enriched
-          with internal reasoning for downstream analysis.
-        </p>
-      </header> */}
+    <div style={{ minHeight: "100vh", background: "var(--background)" }}>
+      <header className="siteHeader">
+        <div className="siteHeaderInner">
+          <div className="brand">discorg</div>
+          <nav className="siteNav">
+            <a href="#tickets">tickets</a>
+            <span className="siteNavSep">/</span>
+            <a href="#graph">graph</a>
+            <span className="siteNavSep">/</span>
+            <a href="#prompt">prompt</a>
+          </nav>
+        </div>
+      </header>
 
-      <DiscordRunner />
-    </main>
+      <main className="grid" style={{ gap: 20 }}>
+        <DiscordRunner />
+      </main>
+    </div>
   );
 }

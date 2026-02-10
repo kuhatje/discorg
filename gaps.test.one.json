@@ -1,0 +1,79 @@
+{
+  "repository": {
+    "name": "lancedb_lancedb_test",
+    "code_source": "https://github.com/lancedb/lancedb",
+    "docs_source": "https://github.com/lancedb/docs"
+  },
+  "analysis": {
+    "run_hash": "test0001",
+    "run_timestamp": "2026-02-03T22:06:49+00:00",
+    "total_gaps_detected": 1,
+    "validated_gaps": 0,
+    "dismissed_gaps": 0,
+    "last_validation": "2026-02-03",
+    "validation_notes": "Test upload (one dummy gap)."
+  },
+  "gaps": [
+    {
+      "id": "test_gap_20260203_220649",
+      "title": "TEST: Dummy documentation gap for upload verification",
+      "gap": "This is a test finding used to verify the Firestore upload pipeline.",
+      "category": "test",
+      "description": "Dummy gap. Safe to delete after verifying the upload script.",
+      "files": [
+        "docs/README.md",
+        "docs/embedding/index.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-02-03T22:06:49+00:00",
+      "evidence": [
+        {
+          "id": "ev_test_gap_20260203_220649_1",
+          "type": "note",
+          "content": "This is dummy evidence content.",
+          "citation": "N/A",
+          "context": "Created locally for Firestore upload verification."
+        }
+      ],
+      "whyItMatters": "Verifies that Firestore writes to orgs/<orgUid>/findings succeed.",
+      "validationSteps": [
+        {
+          "id": "vs_test_gap_20260203_220649_1",
+          "instruction": "Confirm a new doc exists in orgs/<orgUid>/findings with this ID.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "LOW",
+        "confidence": 0.5,
+        "priority_score": 1,
+        "dimension": "completeness",
+        "issue_group": "test",
+        "suggested_fix": "Delete this finding once verified.",
+        "has_code_changes": false,
+        "validated": false
+      }
+    }
+  ]
+}

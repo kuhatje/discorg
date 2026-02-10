@@ -1,0 +1,423 @@
+{
+  "repository": {
+    "name": "lancedb_lancedb",
+    "code_source": "https://github.com/lancedb/lancedb",
+    "docs_source": "https://github.com/lancedb/docs/"
+  },
+  "analysis": {
+    "run_hash": "e9b66ceb",
+    "run_timestamp": "2026-02-03T17:19:50.018469",
+    "total_gaps_detected": 138,
+    "validated_gaps": 0,
+    "dismissed_gaps": 0,
+    "last_validation": "2026-02-09",
+    "validation_notes": "Curated 4 high-signal documentation gaps from recent (Dec 2025 - Feb 2026) LanceDB Discord threads. Each gap includes evidence from Discord plus concrete pointers into the current docs + codebase. These are proposed and should be re-validated against the latest published docs site and the latest released SDK versions."
+  },
+  "gaps": [
+    {
+      "id": "D1",
+      "title": "Full Text Search: Legacy Tantivy Path and Local-Only Constraints Not Clearly Documented",
+      "gap": "The docs do not clearly explain when Python FTS uses the legacy Tantivy path, what extra dependency it requires, and that this legacy path is limited to local filesystem tables.",
+      "category": "undocumented",
+      "description": "A recent Discord thread shows confusion about whether LanceDB has \"moved to native FTS\" versus still using Tantivy. In Python, a legacy Tantivy-backed FTS path still exists and is triggered when a Tantivy FTS index is present. That path requires an extra Python dependency (`tantivy`) and explicitly errors on non-local filesystems. This behavior is discoverable in code but not clearly documented in a user-facing way, so users are surprised by runtime errors and are unsure which FTS backend they are using.",
+      "files": [
+        "python/python/lancedb/query.py",
+        "python/python/lancedb/table.py",
+        "python/python/lancedb/fts.py",
+        "docs/src/js/classes/Query.md"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": "https://discord.com/channels/1030247538198061086/1101154357778591824/1445060218571722764"
+      },
+      "detectedDate": "2026-02-07T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_hq_discord_fts_0_1",
+          "type": "discord",
+          "content": "User reports docs say \"native FTS\" but Python v0.25.3 still uses Tantivy; asks for clarification and mentions Tantivy deprecation.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Archived%20channels%20-%20lancedb%20%5B1101154357778591824%5D.html#chatlog__message-container-1445060218571722764",
+          "context": "FTS backend confusion / expectations set by docs vs what users see in Python code"
+        },
+        {
+          "id": "ev_hq_discord_fts_0_2",
+          "type": "doc",
+          "content": "Python create_fts_index docs describe `use_tantivy` (legacy vs new) but do not clearly call out the extra `tantivy` dependency or the local-filesystem-only restriction of the legacy Tantivy path.",
+          "citation": "python/python/lancedb/table.py (Table.create_fts_index docstring: use_tantivy)",
+          "context": "Public-facing Python API docs omit key prerequisites/constraints that surface as runtime errors"
+        },
+        {
+          "id": "ev_hq_discord_fts_0_3",
+          "type": "code",
+          "content": "Python FTS query execution imports `tantivy` and raises an ImportError if missing; it also raises NotImplementedError for non-local filesystems.",
+          "citation": "python/python/lancedb/query.py (LanceFtsQueryBuilder.tantivy_to_arrow)",
+          "context": "Actual runtime behavior and error messaging for the legacy Tantivy FTS implementation"
+        },
+        {
+          "id": "ev_d1_discord_link_1",
+          "type": "discord",
+          "content": "Canonical Discord message link (requires server access).",
+          "citation": "https://discord.com/channels/1030247538198061086/1101154357778591824/1445060218571722764",
+          "context": "Public Discord URL for the referenced message."
+        }
+      ],
+      "whyItMatters": "HIGH - FTS is a core feature used in hybrid search and doc search. If the docs do not clearly distinguish the legacy backend and its constraints, users can end up with unexpected ImportErrors / NotImplementedErrors in production (especially on object stores) and misunderstand the supported FTS story.",
+      "validationSteps": [
+        {
+          "id": "vs_hq_discord_fts_0_1",
+          "instruction": "Verify whether the Python docs site/API reference explicitly documents: (a) the legacy Tantivy backend, (b) that it requires installing `tantivy`, and (c) that Tantivy-based FTS is local-filesystem-only.",
+          "isChecked": false,
+          "link": {
+            "label": "Python API Docs",
+            "url": "https://docs.lancedb.com/indexing/fts-index"
+          }
+        },
+        {
+          "id": "vs_hq_discord_fts_0_2",
+          "instruction": "Reproduce the runtime behavior: create or open a table with a Tantivy FTS index, attempt an FTS query without `tantivy` installed, and on a non-local filesystem; confirm the observed errors.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/lancedb/query.py"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.82,
+        "priority_score": 75,
+        "dimension": "user_failure",
+        "issue_group": "concept_full_text_search",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "D2",
+      "title": "Vector Search: distance_type(), _distance, and refine_factor() Behavior Is Easy to Misread (IVF-PQ)",
+      "gap": "The synchronous Python vector search docs do not clearly connect `distance_type()` with `_distance` and `refine_factor()`: users can interpret `_distance` as exact metric output (dot/cosine/l2), but IVF-PQ may return approximate distances until refinement.",
+      "category": "undocumented",
+      "description": "A recent Discord question reports that `_distance` \"looks like l2\" even though the vector index metric is dot, and that `_distance` changes only when refinement is enabled. In the Python sync API (`Table.search()`), the `refine_factor()` docs explain reranking, but omit the key note that without refinement the `_distance` values can be approximate (quantized) distances for IVF-PQ. That note exists in other surfaces (e.g., async/vector query docs and JS docs), making it easy for Python users to miss the explanation and assume incorrect metric handling.",
+      "files": [
+        "python/python/lancedb/query.py",
+        "rust/lancedb/src/query.rs",
+        "docs/src/js/classes/VectorQuery.md"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": "https://discord.com/channels/1030247538198061086/1030247538667827251/1455531871994646551"
+      },
+      "detectedDate": "2026-02-07T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_hq_discord_distance_refine_0_1",
+          "type": "discord",
+          "content": "User reports `_distance` appears to be l2 even with a dot-metric index; only changes after calling `.refine(10)` with dot/cosine.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Community%20Support%20-%20%E2%9D%93questions%20%5B1030247538667827251%5D.html#chatlog__message-container-1455531871994646551",
+          "context": "User confusion about metric selection vs returned `_distance` values"
+        },
+        {
+          "id": "ev_hq_discord_distance_refine_0_2",
+          "type": "discord",
+          "content": "User asks if this behavior is intended.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Community%20Support%20-%20%E2%9D%93questions%20%5B1030247538667827251%5D.html#chatlog__message-container-1455532071429869678",
+          "context": "Confirms the behavior is surprising enough to suspect a bug"
+        },
+        {
+          "id": "ev_hq_discord_distance_refine_0_3",
+          "type": "doc",
+          "content": "Sync Python vector query builder docs for `refine_factor()` describe reranking more candidates, but omit the note that `_distance` may be approximate when refinement is not used.",
+          "citation": "python/python/lancedb/query.py (LanceVectorQueryBuilder.refine_factor docstring)",
+          "context": "This is the primary API surface returned by Table.search() in Python"
+        },
+        {
+          "id": "ev_hq_discord_distance_refine_0_4",
+          "type": "code",
+          "content": "Core query docs state that when refine_factor is NOT called (IVF-PQ), `_distance` can be an approximate distance based on quantized vectors and can differ from the true distance.",
+          "citation": "rust/lancedb/src/query.rs (Query::refine_factor docs)",
+          "context": "Explains the observed delta in `_distance` once refinement is enabled"
+        },
+        {
+          "id": "ev_d2_discord_link_1",
+          "type": "discord",
+          "content": "Canonical Discord message link (requires server access).",
+          "citation": "https://discord.com/channels/1030247538198061086/1030247538667827251/1455531871994646551",
+          "context": "Public Discord URL for the referenced message."
+        },
+        {
+          "id": "ev_d2_discord_link_2",
+          "type": "discord",
+          "content": "Canonical Discord message link (requires server access).",
+          "citation": "https://discord.com/channels/1030247538198061086/1030247538667827251/1455532071429869678",
+          "context": "Public Discord URL for the referenced message."
+        }
+      ],
+      "whyItMatters": "MEDIUM - Users often threshold on `_distance` or use it to validate correctness. If `_distance` is approximate unless refined (and this is not clear in the sync Python docs), users may draw incorrect conclusions about metric support, quality/recall, or tuning.",
+      "validationSteps": [
+        {
+          "id": "vs_hq_discord_distance_refine_0_1",
+          "instruction": "Reproduce with IVF-PQ: create a dot-metric index, run search with `distance_type(\"dot\")` and no refinement, then with `refine_factor(>1)`; compare `_distance` values and ordering.",
+          "isChecked": false,
+          "link": {
+            "label": "Querying ANN Index",
+            "url": "https://docs.lancedb.com/indexing/vector-index"
+          }
+        },
+        {
+          "id": "vs_hq_discord_distance_refine_0_2",
+          "instruction": "Compare against `bypass_vector_index()` (or no index) to confirm the \"true\" distances for the requested metric and document which `_distance` semantics users should expect.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb/blob/main/rust/lancedb/src/query.rs"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "MEDIUM",
+        "confidence": 0.78,
+        "priority_score": 55,
+        "dimension": "understanding",
+        "issue_group": "concept_vector_distance_and_refinement",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "D3",
+      "title": "Indexing Docs: Async Index Creation Scope (Remote) vs Sync (Native) Not Made Explicit",
+      "gap": "Docs and API references mention asynchronous indexing and waiting, but do not clearly state that native/OSS (NativeTable) indexing is synchronous and that async indexing/wait semantics primarily apply to remote tables/backends.",
+      "category": "undocumented",
+      "description": "A recent Discord question shows that the docs language around \"sync vs async indexing\" is ambiguous for open-source users. In the code, the wait_timeout mechanism is explicitly not supported for NativeTable because indexing is synchronous. However, multiple public API surfaces (e.g., Python `wait_timeout` parameters and JS `waitForIndex`) mention asynchronous indexing without clearly scoping it to remote tables/backends, leading users to wonder whether `create_index` runs in the background or whether they should manage concurrency themselves.",
+      "files": [
+        "rust/lancedb/src/index.rs",
+        "docs/src/js/classes/Table.md",
+        "python/python/lancedb/table.py"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": "https://discord.com/channels/1030247538198061086/1197630499926057021/1463642755095072853"
+      },
+      "detectedDate": "2026-02-07T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_hq_discord_async_indexing_0_1",
+          "type": "discord",
+          "content": "User asks whether \"sync vs async indexing\" means using async APIs, or whether `table.create_index` runs in the background for OSS indexing.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20python%20%5B1197630499926057021%5D.html#chatlog__message-container-1463642755095072853",
+          "context": "Direct user confusion caused by the docs phrasing on indexing behavior"
+        },
+        {
+          "id": "ev_hq_discord_async_indexing_0_2",
+          "type": "doc",
+          "content": "JS API reference documents `waitForIndex()` as waiting for \"asynchronous indexing\" but does not clearly specify when/where indexing is asynchronous (e.g., remote only).",
+          "citation": "docs/src/js/classes/Table.md (Table.waitForIndex)",
+          "context": "API docs introduce the term \"asynchronous indexing\" without clarifying scope"
+        },
+        {
+          "id": "ev_hq_discord_async_indexing_0_3",
+          "type": "code",
+          "content": "IndexBuilder.wait_timeout docs: \"This is not supported for NativeTable since indexing is synchronous.\"",
+          "citation": "rust/lancedb/src/index.rs (IndexBuilder.wait_timeout)",
+          "context": "Authoritative statement of sync vs async behavior in the implementation"
+        },
+        {
+          "id": "ev_d3_discord_link_1",
+          "type": "discord",
+          "content": "Canonical Discord message link (requires server access).",
+          "citation": "https://discord.com/channels/1030247538198061086/1197630499926057021/1463642755095072853",
+          "context": "Public Discord URL for the referenced message."
+        }
+      ],
+      "whyItMatters": "MEDIUM - Index build time is operationally significant. If OSS users misunderstand whether indexing blocks, they may misdesign request paths, spawn unnecessary threads/tasks, or incorrectly assume indexes will finish building in the background.",
+      "validationSteps": [
+        {
+          "id": "vs_hq_discord_async_indexing_0_1",
+          "instruction": "Confirm behavior for NativeTable (OSS/local): `create_index(...).execute()` should block until index build completes; `wait_timeout` should be ignored/not supported.",
+          "isChecked": false,
+          "link": {
+            "label": "Vector Indexes Docs",
+            "url": "https://docs.lancedb.com/indexing/vector-index"
+          }
+        },
+        {
+          "id": "vs_hq_discord_async_indexing_0_2",
+          "instruction": "Confirm behavior for RemoteTable (Cloud/remote): index creation can be asynchronous; validate how `wait_timeout` / `waitForIndex` should be used and document it explicitly.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb/blob/main/rust/lancedb/src/index.rs"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "MEDIUM",
+        "confidence": 0.74,
+        "priority_score": 50,
+        "dimension": "understanding",
+        "issue_group": "concept_indexing_async_semantics",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "D4",
+      "title": "Index Caching: prewarm_index() vs read_consistency_interval Not Explained",
+      "gap": "Docs do not explain how index caching works or how prewarm_index relates (or does not relate) to read_consistency_interval, leaving users unsure how to manage cache warmup vs consistency refresh.",
+      "category": "undocumented",
+      "description": "A Discord user explicitly asks for an in-depth guide on index caching and the relationship between prewarm_index and read_consistency_interval. The docs for prewarm_index only mention loading the index into memory to reduce cold-start latency, while read_consistency_interval is defined as a consistency refresh interval for local/OSS connections. There is no guide or cross-reference that clarifies these are separate concerns (cache warmup vs consistency checks), nor how session-level cache sizing interacts with prewarm.",
+      "files": [
+        "docs/src/js/classes/Table.md",
+        "docs/src/js/interfaces/ConnectionOptions.md",
+        "docs/src/js/classes/Session.md",
+        "python/python/lancedb/table.py",
+        "rust/lancedb/src/table.rs",
+        "rust/lancedb/src/database.rs"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": "https://discord.com/channels/1030247538198061086/1197630499926057021/1449468603740192910"
+      },
+      "detectedDate": "2026-02-09T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_hq_discord_index_cache_0_1",
+          "type": "discord",
+          "content": "User asks for a guide to index caching and specifically the relationship between prewarm_index and read_consistency_interval.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20python%20%5B1197630499926057021%5D.html#chatlog__message-container-1449468603740192910",
+          "context": "User confusion about caching vs consistency controls"
+        },
+        {
+          "id": "ev_hq_discord_index_cache_0_2",
+          "type": "doc",
+          "content": "JS Table docs describe prewarmIndex only as loading an index into memory to reduce cold-start latency, with no mention of consistency or cache sizing.",
+          "citation": "docs/src/js/classes/Table.md (Table.prewarmIndex)",
+          "context": "API docs describe prewarm but not how it relates to caching/consistency"
+        },
+        {
+          "id": "ev_hq_discord_index_cache_0_3",
+          "type": "doc",
+          "content": "ConnectionOptions docs define readConsistencyInterval as periodic consistency checks for OSS/local connections, but do not relate it to index caching or prewarm.",
+          "citation": "docs/src/js/interfaces/ConnectionOptions.md (readConsistencyInterval)",
+          "context": "Consistency settings are documented separately without clarifying they are orthogonal to caching"
+        },
+        {
+          "id": "ev_hq_discord_index_cache_0_4",
+          "type": "code",
+          "content": "Rust ReadConsistency enum defines Manual/Eventual/Strong consistency; prewarm_index is a separate API that only loads an index into memory.",
+          "citation": "rust/lancedb/src/database.rs (ReadConsistency) and rust/lancedb/src/table.rs (prewarm_index)",
+          "context": "Implementation shows caching and consistency are distinct concerns"
+        },
+        {
+          "id": "ev_d4_discord_link_1",
+          "type": "discord",
+          "content": "Canonical Discord message link (requires server access).",
+          "citation": "https://discord.com/channels/1030247538198061086/1197630499926057021/1449468603740192910",
+          "context": "Public Discord URL for the referenced message."
+        }
+      ],
+      "whyItMatters": "MEDIUM - Cache warmup and consistency refresh are operationally significant. Without clear guidance, users can misconfigure memory, expect prewarm_index to fix staleness issues, or overuse read_consistency_interval when the real bottleneck is cache behavior.",
+      "validationSteps": [
+        {
+          "id": "vs_hq_discord_index_cache_0_1",
+          "instruction": "Check the docs site for any guidance that explicitly explains index caching, prewarm_index, and how (or if) they relate to read_consistency_interval.",
+          "isChecked": false,
+          "link": {
+            "label": "Python API Docs",
+            "url": "https://docs.lancedb.com/tables/consistency"
+          }
+        },
+        {
+          "id": "vs_hq_discord_index_cache_0_2",
+          "instruction": "Confirm in code that read_consistency_interval only controls refresh behavior while prewarm_index only loads index data into memory, and that cache sizing is configured via Session.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb/blob/main/rust/lancedb/src/database.rs"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "MEDIUM",
+        "confidence": 0.75,
+        "priority_score": 52,
+        "dimension": "understanding",
+        "issue_group": "concept_index_caching",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    }
+  ]
+}

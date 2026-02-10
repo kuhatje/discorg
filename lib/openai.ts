@@ -72,6 +72,10 @@ export const createStructuredTicketWithOpenAI = async (
     return null;
   }
 
+  console.info(
+    `[LLM] OpenAI ticket refinement succeeded (model=${model}, channel=${channel}, chars=${input.length}).`,
+  );
+
   const payload = await response.json();
   const content = payload?.choices?.[0]?.message?.content;
   if (!content || typeof content !== "string") return null;

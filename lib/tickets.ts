@@ -228,9 +228,20 @@ export const ticketWeight = (ticket: Ticket) =>
 export type TicketLLMConfig = OpenAIConfig & {
   maxTickets?: number;
   maxInputChars?: number;
+  extraContext?: string;
 };
 
-const buildLLMInput = (messages: DiscordMessage[], maxInputChars: number) => {
+export type TicketLLMRefineStats = {
+  attempted: number;
+  succeeded: number;
+  failed: number;
+};
+
+const buildLLMInput = (
+  messages: DiscordMessage[],
+  maxInputChars: number,
+  extraContext?: string,
+) => {
   const lines: string[] = [];
   lines.push("Messages:");
   messages.forEach((msg) => {
@@ -240,17 +251,24 @@ const buildLLMInput = (messages: DiscordMessage[], maxInputChars: number) => {
     lines.push(`[${ts}] ${author}: ${msg.content}${links}`);
   });
   const joined = lines.join("\n");
-  if (joined.length <= maxInputChars) return joined;
-  return `${joined.slice(0, maxInputChars)}...`;
+  const contextBlock = extraContext
+    ? `\n\nDoc-analyzer context:\n${extraContext}`
+    : "";
+  if (joined.length + contextBlock.length <= maxInputChars) {
+    return `${joined}${contextBlock}`;
+  }
+  const trimmed = joined.slice(0, Math.max(0, maxInputChars - contextBlock.length));
+  return `${trimmed}${contextBlock}`;
 };
 
 export const refineTicketsWithLLM = async (
   tickets: Ticket[],
   ticketSources: Record<string, DiscordMessage[]>,
   config: TicketLLMConfig,
-): Promise<Ticket[]> => {
-  const { apiKey, model, maxTickets = 12, maxInputChars = 6000 } = config;
+): Promise<{ tickets: Ticket[]; stats: TicketLLMRefineStats }> => {
+  const { apiKey, model, maxTickets = 12, maxInputChars = 6000, extraContext } = config;
   const refined: Ticket[] = [];
+  const stats: TicketLLMRefineStats = { attempted: 0, succeeded: 0, failed: 0 };
 
   for (let i = 0; i < tickets.length; i++) {
     const ticket = tickets[i];
@@ -263,7 +281,8 @@ export const refineTicketsWithLLM = async (
       refined.push(ticket);
       continue;
     }
-    const input = buildLLMInput(messages, maxInputChars);
+    const input = buildLLMInput(messages, maxInputChars, extraContext);
+    stats.attempted += 1;
     const result = await createStructuredTicketWithOpenAI({
       apiKey,
       model,
@@ -271,9 +290,11 @@ export const refineTicketsWithLLM = async (
       channel: ticket.channel ?? "unknown",
     });
     if (!result) {
+      stats.failed += 1;
       refined.push(ticket);
       continue;
     }
+    stats.succeeded += 1;
     refined.push({
       ...ticket,
       title: result.title,
@@ -286,5 +307,5 @@ export const refineTicketsWithLLM = async (
     });
   }
 
-  return refined;
+  return { tickets: refined, stats };
 };

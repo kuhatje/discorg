@@ -2,8 +2,8 @@ import "./globals.css";
 import { ReactNode } from "react";
 
 export const metadata = {
-  title: "Context Closure",
-  description: "Optimal closure driven documentation context builder",
+  title: "discorg",
+  description: "Discord documentation gap analyzer",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

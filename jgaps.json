@@ -1,0 +1,662 @@
+{
+  "repository": {
+    "name": "lancedb_lancedb",
+    "code_source": "https://github.com/lancedb/lancedb",
+    "docs_source": "https://github.com/lancedb/docs/"
+  },
+  "analysis": {
+    "run_hash": "e9b66ceb",
+    "run_timestamp": "2026-02-03T17:19:50.018469",
+    "total_gaps_detected": 138,
+    "validated_gaps": 0,
+    "dismissed_gaps": 0,
+    "last_validation": "2026-02-03",
+    "validation_notes": "Selected <=7 documentation gaps based on recurring questions in the LanceDB Discord exports. For each gap we include concrete evidence from (a) the Discord thread, (b) the current docs pages/files, and (c) the implementation (code) where applicable. These gaps are proposed (not yet manually validated against the public docs site / latest released SDK versions)."
+  },
+  "gaps": [
+    {
+      "id": "discord_js_versioning_0",
+      "title": "Node/TypeScript Versioning Semantics (What Creates Versions) Not Explained",
+      "gap": "The Node/TypeScript docs do not explain what a 'table version' is, which operations create new versions, and how version retention impacts disk usage/time-travel.",
+      "category": "multi-language support",
+      "description": "Users ask whether each add/update/delete creates a new version file and why version directories grow quickly. The Node/TS API reference exposes versioning primitives (e.g., Table.version(), checkout/restore/tags) and many mutation methods return a 'new version number', but there is no clear, user-facing explanation of the underlying model: LanceDB is versioned and append-only; writes create new files and new dataset versions, and old versions remain until pruned (enabling time travel but consuming storage).",
+      "files": [
+        "docs/src/js/classes/Table.md",
+        "rust/lancedb/src/table.rs"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_js_versioning_0_1",
+          "type": "discord",
+          "content": "User asks if JS supports versioning/time travel operations.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1199298826981351454",
+          "context": "Discord user cannot find/confirm versioning support in JS/TS"
+        },
+        {
+          "id": "ev_discord_js_versioning_0_2",
+          "type": "discord",
+          "content": "User asks if add/delete/update generate new version files; maintainer confirms: 'Yes and yes. Read operations do not generate new version files.'",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1252603536735211562",
+          "context": "Version file creation semantics are clarified in chat, not docs"
+        },
+        {
+          "id": "ev_discord_js_versioning_0_3",
+          "type": "doc",
+          "content": "JS API docs for add() and other mutations mainly state they return a 'new version number', and version() is only documented as 'Retrieve the version of the table' without explaining what a version represents.",
+          "citation": "docs/src/js/classes/Table.md (see add(), version())",
+          "context": "Docs expose version numbers but not the conceptual model of versions/files"
+        },
+        {
+          "id": "ev_discord_js_versioning_0_4",
+          "type": "code",
+          "content": "Rust implementation docs explicitly describe the model: all data-modifying operations create new files/versions; old versions are retained for concurrency and time travel until pruned.",
+          "citation": "rust/lancedb/src/table.rs (OptimizeAction docs: Compact/Prune)",
+          "context": "Implementation explains behavior that is not surfaced in Node/TS docs"
+        }
+      ],
+      "whyItMatters": "MEDIUM - Without a clear explanation of version semantics, users misinterpret version growth, set unsafe retention policies, or run into unexpected disk usage. This is especially common in continuous ingestion/embedding workloads.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_js_versioning_0_1",
+          "instruction": "Check whether the JS Table docs explain what a version is and which operations create new versions/files.",
+          "isChecked": false,
+          "link": {
+            "label": "Table (JS)",
+            "url": "https://docs.lancedb.com/js/classes/Table/"
+          }
+        },
+        {
+          "id": "vs_discord_js_versioning_0_2",
+          "instruction": "Confirm the implementation-level semantics for version creation and pruning (append-only writes; prune removes old versions).",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "LOW",
+        "confidence": 0.78,
+        "priority_score": 40,
+        "dimension": "understanding",
+        "issue_group": "concept_multi-language_sdks",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "discord_js_maintenance_compaction_0",
+      "title": "Node/TS Maintenance: Compaction/Cleanup Guidance Missing (Version Directories, Safety, Concurrency)",
+      "gap": "The Node/TS maintenance docs do not fully document prune/cleanup safety controls (notably OptimizeOptions.deleteUnverified).",
+      "category": "undocumented",
+      "description": "Users ask whether aggressive cleanup (e.g., keeping only the latest version) can lose data and whether cleanup can run safely alongside updates/deletes/compaction. The Node/TS API exposes `table.optimize()` (which includes pruning old versions) and `OptimizeOptions` includes a `deleteUnverified` switch, but the docs do not explain what `deleteUnverified` does or why the default exists. In the implementation, this flag controls whether 'unverified' recent files may be deleted (which can be unsafe if there are in-progress transactions).",
+      "files": [
+        "docs/src/js/classes/Table.md",
+        "docs/src/js/interfaces/OptimizeOptions.md",
+        "rust/lancedb/src/table.rs"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_js_maintenance_compaction_0_1",
+          "type": "discord",
+          "content": "User asks if cleanupOldVersions(0) risks losing data and whether it's safe to run cleanup periodically while embedding runs.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1252598515163594763",
+          "context": "Real-world need for clear cleanup/prune safety guidance"
+        },
+        {
+          "id": "ev_discord_js_maintenance_compaction_0_2",
+          "type": "discord",
+          "content": "Maintainer notes concurrency caveat: cleanup is safe for append-only adds, but updates/deletes/compaction concurrently with cleanup can fail.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1252602872500191343",
+          "context": "Concurrency caveats are communicated in chat"
+        },
+        {
+          "id": "ev_discord_js_maintenance_compaction_0_3",
+          "type": "doc",
+          "content": "OptimizeOptions documents cleanupOlderThan, but the deleteUnverified option is declared without any description.",
+          "citation": "docs/src/js/interfaces/OptimizeOptions.md",
+          "context": "Public JS docs omit the meaning and safety implications of deleteUnverified"
+        },
+        {
+          "id": "ev_discord_js_maintenance_compaction_0_4",
+          "type": "code",
+          "content": "Implementation docs explain the safety model: by default, files newer than 7 days are not deleted because they may be part of an in-progress transaction; delete_unverified allows deleting them if you are sure it's safe.",
+          "citation": "rust/lancedb/src/table.rs (OptimizeAction::Prune docs)",
+          "context": "Explains why prune defaults exist and what deleteUnverified changes"
+        }
+      ],
+      "whyItMatters": "HIGH - Cleanup/pruning is an operational foot-gun. Missing docs for deleteUnverified and concurrency caveats can lead to failed maintenance, data becoming unavailable for time travel, or unsafe deletion assumptions in production.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_js_maintenance_compaction_0_1",
+          "instruction": "Verify OptimizeOptions documents deleteUnverified (what it deletes and when it is safe).",
+          "isChecked": false,
+          "link": {
+            "label": "OptimizeOptions (JS)",
+            "url": "https://docs.lancedb.com/js/interfaces/OptimizeOptions/"
+          }
+        },
+        {
+          "id": "vs_discord_js_maintenance_compaction_0_2",
+          "instruction": "Confirm prune safety defaults (e.g., recent/unverified files) and how they map to deleteUnverified in the implementation.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "MEDIUM",
+        "confidence": 0.78,
+        "priority_score": 40,
+        "dimension": "understanding",
+        "issue_group": "concept_multi-language_sdks",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "discord_storage_manifest_0",
+      "title": "Storage Format: 'Manifest' Is Referenced but Not Defined",
+      "gap": "The docs reference the table 'manifest' but do not define what it is or why it matters (versions, cloning, disk usage).",
+      "category": "undocumented",
+      "description": "Users investigating rapid storage growth ask what the 'file manifest' is and what it contains. The Node/TS docs reference the manifest in a few places (e.g., cloneTable describes an 'independent manifest', tag metadata includes manifestSize), but they do not provide a short conceptual explanation of what a manifest is in Lance/LanceDB, how it relates to versions, or why manifest/versions affect disk usage.",
+      "files": [
+        "docs/src/js/classes/Connection.md",
+        "docs/src/js/classes/TagContents.md"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_storage_manifest_0_1",
+          "type": "discord",
+          "content": "User asks: 'Could you provide some insight into what the file manifest includes and its purpose?'",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1252598515163594763",
+          "context": "Direct request for a manifest explanation"
+        },
+        {
+          "id": "ev_discord_storage_manifest_0_2",
+          "type": "discord",
+          "content": "Maintainer explains the manifest tracks what files are part of the database and links to the Lance table format documentation.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1252601419501015062",
+          "context": "Answer relies on external format docs rather than a LanceDB docs page"
+        },
+        {
+          "id": "ev_discord_storage_manifest_0_3",
+          "type": "doc",
+          "content": "Connection.cloneTable() references an 'independent manifest' but does not explain what a manifest is.",
+          "citation": "docs/src/js/classes/Connection.md (cloneTable)",
+          "context": "Manifest is user-visible but undefined"
+        },
+        {
+          "id": "ev_discord_storage_manifest_0_4",
+          "type": "doc",
+          "content": "TagContents exposes manifestSize but provides no description of what this value represents.",
+          "citation": "docs/src/js/classes/TagContents.md",
+          "context": "User-visible manifest-related metadata lacks explanation"
+        }
+      ],
+      "whyItMatters": "MEDIUM - The manifest is a core storage concept that shows up in cloning, tagging, and versioned storage behavior. Without a definition, users can't reason about disk growth, version retention, or operational tradeoffs.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_storage_manifest_0_1",
+          "instruction": "Search the JS docs for 'manifest' and confirm whether there is a user-facing definition of what the manifest is.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB JS Docs",
+            "url": "https://docs.lancedb.com/js/"
+          }
+        },
+        {
+          "id": "vs_discord_storage_manifest_0_2",
+          "instruction": "Check whether LanceDB docs link to the Lance format spec for manifest details and whether that link is discoverable from storage/versioning docs.",
+          "isChecked": false,
+          "link": {
+            "label": "Lance Format",
+            "url": "https://lancedb.github.io/lance/format.html"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.78,
+        "priority_score": 60,
+        "dimension": "understanding",
+        "issue_group": "concept_lance_columnar_storage_format",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "discord_ts_embedding_wiring_0",
+      "title": "TypeScript Table.search('auto'): Docs Imply FTS Fallback but Runtime Can Throw 'No embedding functions'",
+      "gap": "The Node/TS docs imply `search(string, 'auto')` will fall back to full-text search when no embedding function is defined, but the implementation can throw `No embedding functions are defined in the table`.",
+      "category": "incorrect",
+      "description": "A TypeScript user followed the documented LanceSchema/embedding-function patterns, successfully created a table, but hit a runtime error when calling search(): `No embedding functions are defined in the table`. The Table.search docs describe 'auto' mode as choosing vector search if an embedding function is defined and full-text search otherwise. In the Node implementation, the decision path depends on the global embedding registry and can still attempt query embedding even when the table has zero embedding functions configured, resulting in the error.",
+      "files": [
+        "docs/src/js/classes/Table.md",
+        "nodejs/lancedb/table.ts"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_ts_embedding_wiring_0_1",
+          "type": "discord",
+          "content": "User hits runtime error when searching: 'Error: No embedding functions are defined in the table' after creating a table with LanceSchema fields.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1273414891197304832",
+          "context": "Concrete runtime failure following documented patterns"
+        },
+        {
+          "id": "ev_discord_ts_embedding_wiring_0_2",
+          "type": "doc",
+          "content": "JS docs for Table.search() state that in 'auto' mode, a string query uses vector search if an embedding function is defined, and full-text search if none is defined.",
+          "citation": "docs/src/js/classes/Table.md (search() parameters: queryType=\"auto\")",
+          "context": "Docs describe an automatic fallback behavior"
+        },
+        {
+          "id": "ev_discord_ts_embedding_wiring_0_3",
+          "type": "code",
+          "content": "Node implementation can reject with `No embedding functions are defined in the table` when it attempts to compute query embeddings but table metadata contains no embedding functions.",
+          "citation": "nodejs/lancedb/table.ts:737-756",
+          "context": "Behavior contradicts the implied 'auto falls back when none are defined' story"
+        }
+      ],
+      "whyItMatters": "HIGH - This is a user-facing doc/behavior mismatch that results in runtime exceptions in common TS workflows. It blocks adoption and causes repeated support questions.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_ts_embedding_wiring_0_1",
+          "instruction": "Verify Table.search('auto') docs describe the actual fallback/error behavior when the table has no embedding functions.",
+          "isChecked": false,
+          "link": {
+            "label": "Table (JS)",
+            "url": "https://docs.lancedb.com/js/classes/Table/"
+          }
+        },
+        {
+          "id": "vs_discord_ts_embedding_wiring_0_2",
+          "instruction": "Reproduce: create a table without embedding functions, then call search('text', 'auto') and confirm whether it falls back to FTS or errors.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.78,
+        "priority_score": 60,
+        "dimension": "understanding",
+        "issue_group": "concept_embedding_function_framework",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "discord_hybrid_rowid_rerank_0",
+      "title": "Hybrid Reranking: _rowid and Input Schema Requirements Not Documented",
+      "gap": "Hybrid reranking requirements are undocumented: rerankers expect specific columns (e.g., `_rowid`) and specific input table types.",
+      "category": "undocumented",
+      "description": "Users attempting hybrid reranking hit errors like missing `_rowid`. The JS reranker interface docs define the method signature but do not describe the required input schema (e.g., `_rowid`, score/distance columns) or how to enable those columns in search results. The implementation of common rerankers (e.g., RRF) explicitly requires `_rowid` for deduplication/fusion and instructs callers to include row ids in search results.",
+      "files": [
+        "docs/src/js/namespaces/rerankers/interfaces/Reranker.md",
+        "docs/src/js/classes/Query.md",
+        "python/python/lancedb/rerankers/rrf.py"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_hybrid_rowid_rerank_0_1",
+          "type": "discord",
+          "content": "Maintainer explains rerank_hybrid failure: vector/FTS results are missing `_rowid`; attach `_rowid` for reranking; rerank_hybrid needs pa.Table.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Community%20Support%20-%20lancedb-cloud%20%5B1300588025360810054%5D.html#chatlog__message-container-1309283252220985466",
+          "context": "Concrete missing requirement discovered via Discord support"
+        },
+        {
+          "id": "ev_discord_hybrid_rowid_rerank_0_2",
+          "type": "doc",
+          "content": "JS Reranker interface docs define rerankHybrid(query, vecResults, ftsResults) but do not document required columns like `_rowid` / score/distance fields.",
+          "citation": "docs/src/js/namespaces/rerankers/interfaces/Reranker.md",
+          "context": "Reranker docs omit input schema requirements"
+        },
+        {
+          "id": "ev_discord_hybrid_rowid_rerank_0_3",
+          "type": "doc",
+          "content": "Query.withRowId() docs mention row ids can be used to match results between vector and full-text queries for hybrid search, but do not connect this to reranker requirements.",
+          "citation": "docs/src/js/classes/Query.md (withRowId)",
+          "context": "Row-id guidance exists but is not tied to reranking requirements"
+        },
+        {
+          "id": "ev_discord_hybrid_rowid_rerank_0_4",
+          "type": "code",
+          "content": "RRF multivector reranker requires `_rowid` and errors if missing, instructing users to include row ids (e.g., `search().with_row_id(True)`).",
+          "citation": "python/python/lancedb/rerankers/rrf.py:96-102",
+          "context": "Implementation has strict input requirements not surfaced in docs"
+        }
+      ],
+      "whyItMatters": "HIGH - Hybrid search + reranking is a core RAG workflow. Missing schema/type requirements cause runtime errors and make it hard to build reliable pipelines across SDKs.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_hybrid_rowid_rerank_0_1",
+          "instruction": "Verify reranker docs specify required columns/types for vecResults/ftsResults (e.g., _rowid) and how to enable them.",
+          "isChecked": false,
+          "link": {
+            "label": "Rerankers (JS)",
+            "url": "https://docs.lancedb.com/js/namespaces/rerankers/"
+          }
+        },
+        {
+          "id": "vs_discord_hybrid_rowid_rerank_0_2",
+          "instruction": "Confirm in code that common rerankers require _rowid for deduplication/fusion and produce a clear error when missing.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.78,
+        "priority_score": 60,
+        "dimension": "understanding",
+        "issue_group": "concept_reranking_framework",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "discord_ts_cosine_multivector_0",
+      "title": "TypeScript MultiVector: No Docs/Examples for Multi-Query-Vector Search",
+      "gap": "MultiVector / multi-query-vector support exists in Node/TS APIs but has no documentation or examples.",
+      "category": "undocumented",
+      "description": "TypeScript users modeling 'multiple embeddings per row' (e.g., a list of skill embeddings) ask how to query with cosine similarity and whether their multivector setup is correct. The JS docs expose a `MultiVector` type alias and accept it in search/vectorSearch signatures, but provide no explanation of the expected schema layout, how to construct multivector queries, or how results are combined. In the implementation, multivector input is handled by turning one query into a VectorQuery and then adding additional query vectors.",
+      "files": [
+        "docs/src/js/type-aliases/MultiVector.md",
+        "nodejs/lancedb/table.ts",
+        "docs/src/js/classes/Table.md"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_ts_cosine_multivector_0_1",
+          "type": "discord",
+          "content": "User asks how to query cosine similarity over a list-of-embeddings field in TypeScript and whether their multivector setup is correct.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Languages%20-%20javascript%20%5B1197630540271067258%5D.html#chatlog__message-container-1333941990831951882",
+          "context": "Users cannot find TS guidance for multivector querying"
+        },
+        {
+          "id": "ev_discord_ts_cosine_multivector_0_2",
+          "type": "doc",
+          "content": "The MultiVector type alias is defined but has no description or usage example.",
+          "citation": "docs/src/js/type-aliases/MultiVector.md",
+          "context": "Public TS docs expose the concept but do not explain it"
+        },
+        {
+          "id": "ev_discord_ts_cosine_multivector_0_3",
+          "type": "code",
+          "content": "Node implementation supports MultiVector by creating a VectorQuery from the first vector and calling addQueryVector for subsequent vectors.",
+          "citation": "nodejs/lancedb/table.ts:765-772",
+          "context": "Shows intended behavior that lacks documentation"
+        }
+      ],
+      "whyItMatters": "MEDIUM - Multivector patterns are common in RAG/recommendation (skills, multi-chunk, multi-field queries). Missing docs force users to reverse-engineer APIs and can lead to incorrect relevance results.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_ts_cosine_multivector_0_1",
+          "instruction": "Verify the JS docs for MultiVector include (or omit) any explanation/examples.",
+          "isChecked": false,
+          "link": {
+            "label": "MultiVector (JS)",
+            "url": "https://docs.lancedb.com/js/type-aliases/MultiVector/"
+          }
+        },
+        {
+          "id": "vs_discord_ts_cosine_multivector_0_2",
+          "instruction": "Confirm how MultiVector queries are executed (e.g., addQueryVector semantics) and whether the docs explain scoring/combination.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Repo",
+            "url": "https://github.com/lancedb/lancedb"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "MEDIUM",
+        "confidence": 0.78,
+        "priority_score": 40,
+        "dimension": "understanding",
+        "issue_group": "concept_vector_search_api",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "discord_cloud_regions_0",
+      "title": "LanceDB Cloud: Region Availability (us-east-1 only) and BYOC Options Not Discoverable",
+      "gap": "The LanceDB Cloud docs do not clearly state supported regions or how BYOC relates to region selection.",
+      "category": "undocumented",
+      "description": "Users ask whether LanceDB Cloud can be deployed in EU regions. The public SDK docs expose a `region` connection option and default it to us-east-1, but do not state which regions are actually supported. Support responses indicate Cloud is currently us-east-1 only and that BYOC is the path for other regions. This deployment constraint should be discoverable in the docs without Discord.",
+      "files": [
+        "docs/src/js/interfaces/ConnectionOptions.md",
+        "nodejs/src/connection.rs"
+      ],
+      "source": {
+        "type": "Discord",
+        "url": ""
+      },
+      "detectedDate": "2026-02-03T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_discord_cloud_regions_0_1",
+          "type": "discord",
+          "content": "User asks if LanceDB Cloud can deploy in eu-central-1 or any EU region.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Community%20Support%20-%20lancedb-cloud%20%5B1300588025360810054%5D.html#chatlog__message-container-1331964951228584036",
+          "context": "Region availability question surfaced on Discord"
+        },
+        {
+          "id": "ev_discord_cloud_regions_0_2",
+          "type": "discord",
+          "content": "Maintainer reply: Cloud is us-east-1 only; BYOC supports preferred regions.",
+          "citation": "/api/discord/export?file=LanceDB%20-%20Community%20Support%20-%20lancedb-cloud%20%5B1300588025360810054%5D.html#chatlog__message-container-1332450532752625826",
+          "context": "Key deployment info provided via chat"
+        },
+        {
+          "id": "ev_discord_cloud_regions_0_3",
+          "type": "doc",
+          "content": "JS ConnectionOptions exposes a region parameter with default 'us-east-1' but does not enumerate supported regions or mention BYOC/region limitations.",
+          "citation": "docs/src/js/interfaces/ConnectionOptions.md (region)",
+          "context": "SDK docs imply configurability without stating constraints"
+        },
+        {
+          "id": "ev_discord_cloud_regions_0_4",
+          "type": "code",
+          "content": "Node remote connection builder defaults region to us-east-1 when none is provided.",
+          "citation": "nodejs/src/connection.rs:85-89",
+          "context": "Implementation sets a default but does not indicate availability"
+        }
+      ],
+      "whyItMatters": "HIGH - Region availability impacts compliance, latency, and purchasing decisions. Missing documentation causes avoidable back-and-forth in support channels and delays evaluation/deployment.",
+      "validationSteps": [
+        {
+          "id": "vs_discord_cloud_regions_0_1",
+          "instruction": "Verify Cloud docs explicitly list supported regions and any BYOC/enterprise deployment options.",
+          "isChecked": false,
+          "link": {
+            "label": "LanceDB Docs",
+            "url": "https://docs.lancedb.com/"
+          }
+        },
+        {
+          "id": "vs_discord_cloud_regions_0_2",
+          "instruction": "Confirm SDK connection options expose region but do not enumerate supported regions (and note the default).",
+          "isChecked": false,
+          "link": {
+            "label": "ConnectionOptions (JS)",
+            "url": "https://docs.lancedb.com/js/interfaces/ConnectionOptions/"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.8,
+        "priority_score": 60,
+        "dimension": "understanding",
+        "issue_group": "concept_lancedb_cloud",
+        "suggested_fix": "",
+        "has_code_changes": false,
+        "validated": false
+      }
+    }
+  ]
+}

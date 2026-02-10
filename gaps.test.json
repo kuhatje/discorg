@@ -1,0 +1,17 @@
+{
+  "repository": {
+    "name": "lancedb_lancedb_test",
+    "code_source": "https://github.com/lancedb/lancedb",
+    "docs_source": "https://github.com/lancedb/docs"
+  },
+  "analysis": {
+    "run_hash": "test0000",
+    "run_timestamp": "2026-02-03T21:23:51+00:00",
+    "total_gaps_detected": 0,
+    "validated_gaps": 0,
+    "dismissed_gaps": 0,
+    "last_validation": "2026-02-03",
+    "validation_notes": "Test upload (empty gaps array)."
+  },
+  "gaps": []
+}

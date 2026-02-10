@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Graph, Chunk } from "@/lib/types";
@@ -177,7 +177,7 @@ export default function GraphViewer({
       ctx.scale(transform.k, transform.k);
 
       // Edges
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.strokeStyle = "rgba(17, 24, 39, 0.35)";
       ctx.lineWidth = 1;
       edgesToDraw.forEach((e) => {
         ctx.beginPath();
@@ -185,7 +185,7 @@ export default function GraphViewer({
         ctx.lineTo(e.to.x, e.to.y);
         ctx.stroke();
 
-        // Draw arrowhead
+        // Arrowhead
         if (edgesToDraw.length > 0) {
           const dx = e.to.x - e.from.x;
           const dy = e.to.y - e.from.y;
@@ -194,14 +194,14 @@ export default function GraphViewer({
           const uy = dy / dist;
           const arrowLen = 16;
           const arrowWidth = 6;
-          const px = e.to.x - ux * 22; // offset from node radius
+          const px = e.to.x - ux * 22;
           const py = e.to.y - uy * 22;
           ctx.beginPath();
           ctx.moveTo(px, py);
           ctx.lineTo(px - uy * arrowWidth - ux * arrowLen, py + ux * arrowWidth - uy * arrowLen);
           ctx.lineTo(px + uy * arrowWidth - ux * arrowLen, py - ux * arrowWidth - uy * arrowLen);
           ctx.closePath();
-          ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+          ctx.fillStyle = "rgba(17, 24, 39, 0.55)";
           ctx.fill();
         }
       });
@@ -211,15 +211,15 @@ export default function GraphViewer({
       layout.nodes.forEach((n) => {
         const isSelected = selectedIds?.has(n.id);
         ctx.beginPath();
-        ctx.fillStyle = isSelected ? "#0ea5e9" : "#1f2937";
-        ctx.strokeStyle = isSelected ? "#22d3ee" : "#334155";
+        ctx.fillStyle = isSelected ? "#111827" : "#ffffff";
+        ctx.strokeStyle = isSelected ? "#111827" : "#d1d5db";
         ctx.lineWidth = isSelected ? 2 : 1;
         ctx.arc(n.x, n.y, nodeRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = "#e2e8f0";
-        ctx.font = "14px sans-serif";
+        ctx.fillStyle = isSelected ? "#ffffff" : "#111827";
+        ctx.font = "13px -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif";
         const weight = graph.chunks[n.id]?.weight ?? 0;
         const text = weight.toFixed(1);
         const metrics = ctx.measureText(text);
@@ -232,7 +232,7 @@ export default function GraphViewer({
     resize();
     window.addEventListener("resize", resize);
     return () => window.removeEventListener("resize", resize);
-  }, [layout, transform, graph, selectedIds]);
+  }, [layout, transform, graph, selectedIds, edgesToDraw]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -303,19 +303,20 @@ export default function GraphViewer({
     <div
       style={{
         position: "relative",
-        border: "1px solid #1f2937",
+        border: "1px solid var(--border)",
         borderRadius: 12,
         overflow: "hidden",
+        background: "var(--card-strong)",
       }}
     >
-      <canvas ref={canvasRef} style={{ width: "100%", height: 520, background: "#0b1221" }} />
+      <canvas ref={canvasRef} style={{ width: "100%", height: 520, background: "var(--card-strong)" }} />
       <div
         style={{
           position: "absolute",
           top: 8,
           right: 12,
           fontSize: 12,
-          color: "rgba(226, 232, 240, 0.75)",
+          color: "rgba(17, 24, 39, 0.7)",
           pointerEvents: "none",
           textAlign: "right",
           lineHeight: 1.4,
@@ -323,7 +324,7 @@ export default function GraphViewer({
       >
         Scroll to zoom, drag to pan.
         <br />
-        Click a node to open details; selected nodes/edges are highlighted.
+        Click a node to open details; selected nodes are highlighted.
       </div>
     </div>
   );

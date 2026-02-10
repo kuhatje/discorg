@@ -10,3 +10,4 @@ dist
 .env.development
 .update_script
 sample.tex
+data

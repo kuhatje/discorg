@@ -1,0 +1,1078 @@
+{
+  "repository": {
+    "name": "lancedb_lancedb",
+    "code_source": "https://github.com/lancedb/lancedb",
+    "docs_source": "https://github.com/lancedb/docs/"
+  },
+  "analysis": {
+    "run_hash": "e494f284",
+    "run_timestamp": "2026-01-18T11:39:28.801647",
+    "total_gaps_detected": 11,
+    "validated_gaps": 6,
+    "dismissed_gaps": 2,
+    "last_validation": "2026-01-27",
+    "validation_notes": "Removed mm_Tables_0 (versioning) - tags API fully documented in REST API reference. Removed gap-070 (RemoteDBConnection) - internal implementation detail, not a documentation gap. Removed mm_Rerankers_0 - reranker class names are properly documented in the reranking integration docs. Added mm_Embedding_Functions_3 (Rust SDK manual registration requirement) - critical SDK difference not documented. Downgraded mm_Connecting_to_a_Database_0 to LOW priority - object storage URIs are documented in storage/configuration page. Added mm_Versioning_0 (TypeScript/Rust versioning examples missing) - comprehensive Python examples but no TypeScript or Rust code snippets. Added mm_Rerankers_1 (ColBERT multivector search) - ColBERT docs omit multivector search as supported query type despite full implementation. Added mm_Multivector_Search_0 (XTR implementation) - XTR mentioned but lacks any implementation details or usage examples."
+  },
+  "gaps": [
+    {
+      "id": "mm_Embedding_Functions_3",
+      "title": "Rust SDK Manual Embedding Registration Requirement Missing",
+      "gap": "Embedding functions in LanceDB can be used across Python, Node.js, and Rust SDKs.",
+      "category": "multi-language support",
+      "description": "The documentation treats embedding function setup uniformly across all SDKs, but the Rust SDK has a critical difference: embedding functions must be manually registered with the connection's embedding registry using db.embedding_registry().register() before they can be used in table definitions. Python and Node.js SDKs handle registration automatically. Rust users following the main embedding docs will have their code fail because the manual registration step is not documented.",
+      "files": [
+        "rust/lancedb/src/embeddings/",
+        "rust/lancedb/src/connection.rs",
+        "docs/embedding/index.mdx",
+        "docs/embedding/quickstart.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_mm_Embedding_Functions_3_1",
+          "type": "code",
+          "content": "Rust SDK requires explicit registration: db.embedding_registry().register(\"openai\", embedding.clone())?; then table creation uses: .add_embedding(EmbeddingDefinition::new(\"text\", \"openai\", Some(\"embeddings\")))?. The embedding_name in EmbeddingDefinition must match a previously registered function name.",
+          "citation": "docs.rs/lancedb Rust API documentation + lancedb.github.io/lancedb/basic/",
+          "context": "Rust SDK enforces manual registration pattern at API level"
+        },
+        {
+          "id": "ev_mm_Embedding_Functions_3_2",
+          "type": "doc",
+          "content": "Main embedding documentation at docs.lancedb.com/embedding shows ONLY Python examples. No Rust examples, no SDK comparison table, no notes about manual registration requirements in Rust. Documentation exclusively demonstrates Python's automatic registration pattern.",
+          "citation": "docs.lancedb.com/embedding (validated)",
+          "context": "Primary embedding documentation omits Rust SDK entirely"
+        },
+        {
+          "id": "ev_mm_Embedding_Functions_3_3",
+          "type": "doc",
+          "content": "Unlike Python and TypeScript SDKs which handle registration automatically, Rust SDK requires manual registration. ConnectBuilder allows providing custom EmbeddingRegistry. Complete workflow: create embedding function → get connection → access embedding_registry() → call register(name, function) → create table with matching EmbeddingDefinition.",
+          "citation": "Web search results: lancedb.github.io/lancedb/basic/ + docs.rs/lancedb API reference",
+          "context": "Rust SDK has fundamentally different embedding setup workflow"
+        },
+        {
+          "id": "ev_mm_Embedding_Functions_3_4",
+          "type": "limitation",
+          "content": "Rust SDK currently only supports OpenAI embedding function out of the box. Additionally, Rust does not yet support automatic execution of embedding functions - users must calculate embeddings themselves. These limitations are not mentioned in main embedding documentation.",
+          "citation": "lancedb.github.io/lancedb/basic/",
+          "context": "Rust SDK has additional embedding limitations beyond registration requirement"
+        }
+      ],
+      "whyItMatters": "CRITICAL - Rust developers following the main embedding documentation will write code that fails at runtime because they're missing the mandatory db.embedding_registry().register() step. The docs show only Python examples with automatic registration, giving no indication that Rust requires a completely different workflow. This creates a significant barrier for Rust SDK adoption.",
+      "validationSteps": [
+        {
+          "id": "vs_mm_Embedding_Functions_3_1",
+          "instruction": "Verify information in Embedding Documentation",
+          "isChecked": false,
+          "link": {
+            "label": "Embedding",
+            "url": "https://docs.lancedb.com/embedding"
+          }
+        },
+        {
+          "id": "vs_mm_Embedding_Functions_3_2",
+          "instruction": "Verify information in Rust API Documentation",
+          "isChecked": false,
+          "link": {
+            "label": "Rust docs.rs",
+            "url": "https://docs.rs/lancedb/latest/lancedb/"
+          }
+        },
+        {
+          "id": "vs_mm_Embedding_Functions_3_3",
+          "instruction": "Verify information in LanceDB Basic Guide",
+          "isChecked": false,
+          "link": {
+            "label": "Basic Guide",
+            "url": "https://lancedb.github.io/lancedb/basic/"
+          }
+        },
+        {
+          "id": "vs_mm_Embedding_Functions_3_fix",
+          "instruction": "Review suggested fix: Add SDK-specific section to embedding docs explaining manual registration requirement in Rust with complete code examples.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "priority_score": 85,
+        "dimension": "completeness",
+        "issue_group": "sdk_parity",
+        "suggested_fix": "Embedding functions in LanceDB work differently across SDKs. **Python/Node.js**: Automatic registration - functions are ready to use immediately. **Rust**: Manual registration required - before using an embedding function, you must register it: `db.embedding_registry().register(\"function_name\", embedding)?;` Then reference it in table creation: `.add_embedding(EmbeddingDefinition::new(\"source_field\", \"function_name\", Some(\"vector_field\")))?`. Currently only OpenAI embeddings are supported in Rust, and automatic embedding execution is not yet available.",
+        "has_code_changes": false,
+        "validated": true
+      }
+    },
+    {
+      "id": "mm_Embedding_Functions_1",
+      "title": "API Key Handling with Secure Variables ($var:) Missing",
+      "gap": "Functions are created with simple parameters, like `create(name=\"model-name\")`. There is no mention of handling API keys or other sensitive information.",
+      "category": "undocumented",
+      "description": "The documentation shows embedding functions being created with simple parameters like create(name='model-name'), but doesn't mention how to handle API keys or sensitive information. LanceDB actually requires API keys to be passed as secure variables using the syntax api_key='$var:MY_API_KEY' (referencing environment variables). Hardcoding secrets directly will raise an error, but users won't know this mandatory security requirement from the docs.",
+      "files": [
+        "python/python/lancedb/embeddings/base.py:58-65",
+        "python/python/lancedb/embeddings/base.py:170-183",
+        "docs/embedding/index.mdx",
+        "docs/embedding/quickstart.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_mm_Embedding_Functions_1_1",
+          "type": "code",
+          "content": "Code explicitly checks for $var: prefix and raises ValueError if sensitive keys are hardcoded (lines 58-65): if isinstance(v, str) and not v.startswith('$var:') and k in sensitive_keys: exc = ValueError(f\"Sensitive key '{k}' cannot be hardcoded. Use a variable instead.\"); add_note(exc, \"Help: Use $var: to set sensitive keys to variables\"); raise exc",
+          "citation": "python/python/lancedb/embeddings/base.py:58-65 (validated)",
+          "context": "Security enforcement at framework level prevents common mistakes"
+        },
+        {
+          "id": "ev_mm_Embedding_Functions_1_2",
+          "type": "doc",
+          "content": "Registry usage: from lancedb.embeddings import get_registry; registry = get_registry(); func = registry.get('openai').create(name='text-embedding-3-small', api_key='$var:OPENAI_API_KEY'). Supported providers: sentence-transformers, openai, cohere, instructor, gemini, ollama, etc.",
+          "citation": "docs.lancedb.com/embedding + docs.lancedb.com/embedding/quickstart",
+          "context": "Registry provides unified interface to multiple embedding providers"
+        },
+        {
+          "id": "ev_mm_Embedding_Functions_1_3",
+          "type": "doc",
+          "content": "Create custom embedding function: class MyEmbedding(TextEmbeddingFunction): def generate_embeddings(self, texts): ...; def ndims(self): return 768. Register: registry.register('my-embedding')(MyEmbedding). Then use via registry.get('my-embedding').create()",
+          "citation": "docs.lancedb.com/embedding (custom functions section)",
+          "context": "Custom embeddings follow same registry pattern as built-in providers"
+        }
+      ],
+      "whyItMatters": "HIGH - The security requirement is enforced at code level but not documented. Users will encounter errors when they hardcode API keys without understanding why or how to fix it.",
+      "validationSteps": [
+        {
+          "id": "vs_mm_Embedding_Functions_1_1",
+          "instruction": "Verify information in Embedding",
+          "isChecked": false,
+          "link": {
+            "label": "Embedding",
+            "url": "https://docs.lancedb.com/embedding"
+          }
+        },
+        {
+          "id": "vs_mm_Embedding_Functions_1_2",
+          "instruction": "Verify information in Quickstart",
+          "isChecked": false,
+          "link": {
+            "label": "Quickstart",
+            "url": "https://docs.lancedb.com/embedding/quickstart"
+          }
+        },
+        {
+          "id": "vs_mm_Embedding_Functions_1_3",
+          "instruction": "Verify information in 7.2 Reranking",
+          "isChecked": false,
+          "link": {
+            "label": "7.2 Reranking",
+            "url": "https://deepwiki.com/lancedb/lancedb/7.2-reranking"
+          }
+        },
+        {
+          "id": "vs_mm_Embedding_Functions_1_fix",
+          "instruction": "Review suggested fix: Added information on how to pass configuration and required secure variables like API keys.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "user_claude_validator",
+        "name": "Claude Validator",
+        "role": "ai_validator",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "priority_score": 60,
+        "dimension": "understanding",
+        "issue_group": "concept_embedding_functions",
+        "suggested_fix": "Code showing how to get a pre-built function: `model = get_registry().get(\"sentence-transformers\").create(name=\"BAAI/bge-small-en-v1.5\")`. Some functions require configuration, such as an API key. Sensitive values must be passed as secure variables (e.g., `api_key='$var:MY_API_KEY'`). Hardcoding secrets will raise an error.",
+        "has_code_changes": false,
+        "validated": true
+      }
+    },
+    {
+      "id": "gh_issue_2759",
+      "title": "Rust SDK: create_empty_table() Missing Embedding Support",
+      "gap": "The Rust SDK's `create_empty_table()` method does not support embedding column configuration, while Python SDK does.",
+      "category": "multi-language support",
+      "description": "While both Rust and Python SDKs claim to support creating empty tables with schemas, the Rust SDK's create_empty_table() method cannot configure embedding columns. Even using .add_embedding() in the builder pattern has no effect - the underlying TableDefinition::new_from_schema() marks all columns as physical, erasing embedding metadata. Rust developers cannot create tables with embeddings using the documented API, forcing them to find workarounds or switch to Python.",
+      "files": [
+        "rust/lancedb/src/connection.rs",
+        "rust/lancedb/src/table.rs",
+        "python/python/lancedb/table.py",
+        "docs/rust/tables.md"
+      ],
+      "source": {
+        "type": "GitHub",
+        "url": "https://github.com/lancedb/lancedb/issues/2759"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_gh_2759_1",
+          "type": "github",
+          "content": "Issue #2759: Rust SDK's Connection::create_empty does not support setting embedding columns. It purely uses TableDefinition::new_from_schema(schema) which marks each column as physical. Using .add_embedding() in builder pattern produces no embedding columns.",
+          "citation": "https://github.com/lancedb/lancedb/issues/2759",
+          "context": "User report with code example showing the limitation"
+        },
+        {
+          "id": "ev_gh_2759_2",
+          "type": "code",
+          "content": "let table = connection\n    .create_empty_table(\"test\", schema)\n    .mode(CreateTableMode::Overwrite)\n    .add_embedding(ed)  // This has no effect!\n    .unwrap();",
+          "citation": "https://github.com/lancedb/lancedb/issues/2759 - Rust code example",
+          "context": "Attempted usage that fails to create embedding columns"
+        },
+        {
+          "id": "ev_gh_2759_3",
+          "type": "github",
+          "content": "Comment from westonpace (Contributor): 'I agree that create_empty_table should be able to create embeddings. I suspect the only reason it doesn't is that the embeddings features were originally a python-only feature and got moved to Rust later. This path probably got missed.'",
+          "citation": "https://github.com/lancedb/lancedb/issues/2759#comment",
+          "context": "Contributor confirms the issue is a missing feature path"
+        },
+        {
+          "id": "ev_gh_2759_4",
+          "type": "doc",
+          "content": "Python SDK uses sanitize_create_table which creates an empty record batch, allowing CreateTableBuilder::into_request to handle embedding definitions through WithEmbeddings. Rust SDK bypasses this by using TableDefinition::new_from_schema directly.",
+          "citation": "Issue analysis comparing Python and Rust implementations",
+          "context": "Technical root cause of the discrepancy"
+        }
+      ],
+      "whyItMatters": "CRITICAL - Rust developers cannot create tables with embedding columns using the documented API. This creates a significant feature gap between Python and Rust SDKs, forcing Rust users to find workarounds or switch to Python for embedding functionality. This affects adoption of the Rust SDK.",
+      "validationSteps": [
+        {
+          "id": "vs_gh_2759_1",
+          "instruction": "Review Rust SDK documentation for create_empty_table",
+          "isChecked": false,
+          "link": {
+            "label": "Rust Implementation",
+            "url": "https://github.com/lancedb/lancedb/tree/main/rust/lancedb/src/connection.rs"
+          }
+        },
+        {
+          "id": "vs_gh_2759_2",
+          "instruction": "Compare with Python SDK's create_table behavior for embeddings",
+          "isChecked": false,
+          "link": {
+            "label": "Python Implementation",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/lancedb/table.py"
+          }
+        },
+        {
+          "id": "vs_gh_2759_3",
+          "instruction": "Verify the issue exists in latest Rust SDK version",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub Issue #2759",
+            "url": "https://github.com/lancedb/lancedb/issues/2759"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "priority_score": 85,
+        "dimension": "completeness",
+        "issue_group": "sdk_parity",
+        "suggested_fix": "Update Rust SDK documentation to clearly note that create_empty_table does not currently support embedding columns. Add a code example showing the recommended workaround, or better yet, fix the Rust SDK to support CreateTableBuilder<false>.add_embedding() similar to Python's implementation.",
+        "has_code_changes": true,
+        "validated": false
+      }
+    },
+    {
+      "id": "gap-026",
+      "title": "Node.js Uses .only_if() Not .where() for Filtering",
+      "gap": "The documentation implicitly describes the Python API, where the filtering method is `.where()`. It makes no mention of different naming in other SDKs.",
+      "category": "multi-language support",
+      "description": "The documentation shows filtering using .where(), which works in Python, but doesn't mention that the Node.js SDK uses a completely different method name: .only_if(). A Node.js developer following the docs will search for a .where() method that doesn't exist in their SDK, completely blocking them from using this core filtering feature until they discover the naming difference.",
+      "files": [
+        "python/python/lancedb/query.py:1047-1431",
+        "nodejs/lancedb/query.ts",
+        "docs/search/filtering.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_gap_026_1",
+          "type": "code",
+          "content": "Node.js SDK uses `.only_if()` instead of `.where()` for SQL filtering. This cross-SDK API naming difference is undocumented in the main documentation.",
+          "citation": "Node.js SDK",
+          "context": "Cross-SDK API naming difference causes confusion for Node.js developers"
+        },
+        {
+          "id": "ev_gap_026_2",
+          "type": "doc",
+          "content": "Documentation examples show `.where()` method for filtering without mentioning that Node.js SDK uses different method name.",
+          "citation": "docs.lancedb.com/search/filtering",
+          "context": "Main documentation focuses on Python API"
+        }
+      ],
+      "whyItMatters": "A Node.js developer reading the documentation will search for a `.where()` method that does not exist in their SDK, completely blocking them from using this core filtering feature.",
+      "validationSteps": [
+        {
+          "id": "vs_gap_026_1",
+          "instruction": "Verify Node.js SDK uses .only_if() instead of .where()",
+          "isChecked": false,
+          "link": {
+            "label": "Node.js SDK Implementation",
+            "url": "https://github.com/lancedb/lancedb/tree/main/nodejs"
+          }
+        },
+        {
+          "id": "vs_gap_026_2",
+          "instruction": "Check if cross-SDK naming differences are documented",
+          "isChecked": false,
+          "link": {
+            "label": "Filtering Documentation",
+            "url": "https://docs.lancedb.com/search/filtering"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "priority_score": 70,
+        "dimension": "understanding",
+        "issue_group": "sdk_parity",
+        "suggested_fix": "Add clear SDK-specific documentation sections noting method name differences. Create a comparison table showing Python vs Node.js API equivalents for common operations.",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "gap-031",
+      "title": "Node.js Multi-Column Phrase Query Limitation Missing",
+      "gap": "The documentation does not mention any platform-specific limitations for FTS.",
+      "category": "multi-language support",
+      "description": "The full-text search documentation doesn't mention any platform-specific limitations, but the Node.js SDK has a significant restriction: phrase queries cannot be performed across multiple columns simultaneously. Node.js developers attempting multi-column phrase searches will have their queries fail or behave unexpectedly, with no warning in the documentation about this platform limitation.",
+      "files": [
+        "nodejs/lancedb/",
+        "docs/search/full-text-search.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_gap_031_1",
+          "type": "code",
+          "content": "Node.js API cannot perform phrase queries across multiple columns simultaneously. This is a platform-specific limitation not mentioned in documentation.",
+          "citation": "Node.js SDK limitations",
+          "context": "Multi-column phrase search not supported in Node.js"
+        },
+        {
+          "id": "ev_gap_031_2",
+          "type": "doc",
+          "content": "Full-text search documentation shows examples without mentioning Node.js limitations for phrase queries across multiple columns.",
+          "citation": "docs.lancedb.com/search/full-text-search",
+          "context": "Documentation doesn't distinguish platform capabilities"
+        }
+      ],
+      "whyItMatters": "A Node.js developer attempting a multi-column phrase search will have their query fail or behave unexpectedly, without any warning from the documentation.",
+      "validationSteps": [
+        {
+          "id": "vs_gap_031_1",
+          "instruction": "Verify Node.js phrase query limitation across multiple columns",
+          "isChecked": false,
+          "link": {
+            "label": "Node.js SDK Source",
+            "url": "https://github.com/lancedb/lancedb/blob/8ae4f42f/nodejs/src/query.rs#L533-L535"
+          }
+        },
+        {
+          "id": "vs_gap_031_2",
+          "instruction": "Check if platform-specific FTS limitations are documented",
+          "isChecked": false,
+          "link": {
+            "label": "Full-Text Search Docs",
+            "url": "https://docs.lancedb.com/search/full-text-search"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.9,
+        "priority_score": 65,
+        "dimension": "completeness",
+        "issue_group": "platform_limitations",
+        "suggested_fix": "Add a 'Platform Differences' section to FTS documentation clearly stating Node.js limitations. Include workarounds or alternative approaches for multi-column phrase search.",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "gap-047",
+      "title": "Remote Table .to_pandas()/.to_arrow() Limitations Missing",
+      "gap": "The documentation does not distinguish between the capabilities of a local table and a remote table.",
+      "category": "undocumented",
+      "description": "The documentation treats all tables uniformly without distinguishing between local and remote capabilities. In reality, RemoteTable operations are a subset of what local tables support. Methods like to_arrow() and to_pandas() raise NotImplementedError on remote tables. Users may write code that works perfectly locally, only to have it crash when they switch to LanceDB Cloud, causing confusion and requiring significant rework.",
+      "files": [
+        "python/python/lancedb/remote/table.py:96-102",
+        "python/python/lancedb/table.py",
+        "docs/tables/index.mdx",
+        "docs/cloud/"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_gap_047_1",
+          "type": "code",
+          "content": "RemoteTable explicitly raises NotImplementedError for both to_arrow() and to_pandas() at lines 96-102 in remote/table.py. Remote tables also have no-op implementations for optimize() and cleanup_old_versions().",
+          "citation": "python/python/lancedb/remote/table.py:96-102 (validated)",
+          "context": "Remote tables have intentional limitations to prevent downloading massive datasets"
+        },
+        {
+          "id": "ev_gap_047_2",
+          "type": "doc",
+          "content": "Table documentation shows methods like to_pandas() and to_arrow() without distinguishing between local and remote table capabilities.",
+          "citation": "docs.lancedb.com/tables",
+          "context": "Documentation treats all tables uniformly"
+        },
+        {
+          "id": "ev_gap_047_3",
+          "type": "doc",
+          "content": "For remote tables, use .search().to_pandas() or .search().limit(N).to_arrow() instead of direct table conversion to avoid NotImplementedError.",
+          "citation": "DeepWiki: Table Management",
+          "context": "Workarounds exist but are not prominently documented"
+        }
+      ],
+      "whyItMatters": "Users may write code that works perfectly with a local database, only to have it crash with a `NotImplementedError` when they switch their connection to a remote LanceDB Cloud instance, causing confusion and rework.",
+      "validationSteps": [
+        {
+          "id": "vs_gap_047_1",
+          "instruction": "Verify RemoteTable method limitations in source code",
+          "isChecked": false,
+          "link": {
+            "label": "RemoteTable Source",
+            "url": "https://github.com/lancedb/lancedb/tree/main/python/python/lancedb/remote"
+          }
+        },
+        {
+          "id": "vs_gap_047_2",
+          "instruction": "Check if remote vs local table differences are documented",
+          "isChecked": false,
+          "link": {
+            "label": "Tables Documentation",
+            "url": "https://docs.lancedb.com/tables"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "MEDIUM",
+        "confidence": 0.95,
+        "priority_score": 60,
+        "dimension": "completeness",
+        "issue_group": "deployment_modes",
+        "suggested_fix": "Add a 'Local vs Remote Tables' section documenting method availability differences. Include a comparison table and recommended patterns for remote table access (use search().to_pandas() instead of direct to_pandas()).",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "mm_Storage_Configuration_0",
+      "title": "StorageOptionsProvider for Dynamic Credentials Missing",
+      "gap": "Configuration is done by setting environment variables (e.g., for Azure) or passing a `storage_options` dictionary during connection.",
+      "category": "undocumented",
+      "description": "The documentation shows configuring cloud storage by setting environment variables or passing a storage_options dictionary, but doesn't mention the StorageOptionsProvider class. For dynamic or expiring credentials (common in production environments), users can implement a custom provider with a fetch_storage_options() method that LanceDB calls automatically to refresh credentials. Without documentation, users won't discover this important pattern for handling temporary cloud credentials.",
+      "files": [
+        "python/python/lancedb/io.py:10-72",
+        "docs/storage/index.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_mm_Storage_Configuration_0_1",
+          "type": "code",
+          "content": "StorageOptionsProvider is a core interface for dynamic credential management. Rust implementation in database/listing.rs:249-250 shows: pub(crate) storage_options_provider: Option<Arc<dyn StorageOptionsProvider>>. Both create_table and open_table builders support setting the provider via storage_options_provider(provider) method (connection.rs:383-392, connection.rs:509-517).",
+          "citation": "rust/lancedb/src/database/listing.rs:249-250 + connection.rs:379-383",
+          "context": "Provider enables automatic credential refresh for long-running operations on remote storage"
+        },
+        {
+          "id": "ev_mm_Storage_Configuration_0_2",
+          "type": "code",
+          "content": "Python API includes storage_options_provider parameter in both create_table() and open_table() methods: storage_options_provider: Optional['StorageOptionsProvider'] = None. However, the Python API reference shows the parameter exists but provides no documentation, usage examples, or explanation of the StorageOptionsProvider class.",
+          "citation": "python/lancedb/db.py:236",
+          "context": "Parameter exists in API but is completely undocumented"
+        },
+        {
+          "id": "ev_mm_Storage_Configuration_0_3",
+          "type": "doc",
+          "content": "LanceNamespaceStorageOptionsProvider is the primary implementation: class LanceNamespaceStorageOptionsProvider(StorageOptionsProvider): def fetch_storage_options(self) -> Dict[str, str]. It fetches time-limited credentials automatically from the namespace service via describe_table() (namespace.py:125-195). When namespace returns storage_options, provider is automatically created (namespace.py:401-408).",
+          "citation": "DeepWiki: Python Connection and Database API + Python SDK documentation",
+          "context": "Namespace integration provides automatic credential refresh for multi-tenant architectures"
+        },
+        {
+          "id": "ev_mm_Storage_Configuration_0_4",
+          "type": "limitation",
+          "content": "Storage docs at docs.lancedb.com/storage cover storage backends (S3, GCS, Azure) and storage_options parameter for static credentials, but make no mention of StorageOptionsProvider, dynamic credentials, or automatic refresh mechanisms. Users reading storage documentation won't discover this critical pattern for production deployments with expiring credentials.",
+          "citation": "docs.lancedb.com/storage (validated)",
+          "context": "Main storage documentation omits dynamic credential management entirely"
+        }
+      ],
+      "whyItMatters": "HIGH - Object storage is a major deployment option, especially for cost-sensitive and scalable applications. Configuration details (auth, regions, advanced features) need to be easily discoverable.",
+      "validationSteps": [
+        {
+          "id": "vs_mm_Storage_Configuration_0_1",
+          "instruction": "Verify storage documentation omits StorageOptionsProvider",
+          "isChecked": false,
+          "link": {
+            "label": "Storage Documentation",
+            "url": "https://docs.lancedb.com/storage"
+          }
+        },
+        {
+          "id": "vs_mm_Storage_Configuration_0_2",
+          "instruction": "Check if Python SDK supports storage_options_provider parameter",
+          "isChecked": false,
+          "link": {
+            "label": "Python API Reference",
+            "url": "https://github.com/lancedb/lancedb/blob/e9e904783c5973e856c36b61bcecdf388b6bc130/python/python/lancedb/db.py#L236"
+          }
+        },
+        {
+          "id": "vs_mm_Storage_Configuration_0_3",
+          "instruction": "Verify StorageOptionsProvider implementation details",
+          "isChecked": false,
+          "link": {
+            "label": "DeepWiki: Python Connection API",
+            "url": "https://deepwiki.com/lancedb/lancedb/3.1.2-python-connection-and-database-api"
+          }
+        },
+        {
+          "id": "vs_mm_Storage_Configuration_0_4",
+          "instruction": "Confirm Rust implementation of StorageOptionsProvider interface",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: listing.rs",
+            "url": "https://github.com/lancedb/lancedb/blob/main/rust/lancedb/src/database/listing.rs"
+          }
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "user_claude_validator",
+        "name": "Claude Validator",
+        "role": "ai_validator",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "priority_score": 60,
+        "dimension": "understanding",
+        "issue_group": "concept_storage_configuration",
+        "suggested_fix": "Configuration is done by setting environment variables (e.g., for Azure) or passing a `storage_options` dictionary during connection. For dynamic credentials, you can also implement a custom `StorageOptionsProvider` class. This class must have a `fetch_storage_options()` method that returns a dictionary of credentials. LanceDB will automatically call this method to refresh credentials as needed.",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "mm_Connecting_to_a_Database_0",
+      "title": "Missing S3/GCS/Azure Storage URIs in Connection Examples",
+      "gap": "There are two connection types: local (using a file path) and remote (using a `db://` URI for Cloud/Enterprise).",
+      "category": "undocumented",
+      "description": "The documentation only mentions two connection types (local paths and db:// URIs for Cloud/Enterprise), but LanceDB actually supports a third type: direct connections to cloud object storage using s3://, gs://, or az:// URIs. Users reading the main connection docs won't discover they can connect directly to their own S3, GCS, or Azure storage, missing out on a significant deployment option.",
+      "files": [
+        "nodejs/lancedb/index.ts:133-153",
+        "python/python/lancedb/__init__.py:65-138",
+        "docs/snippets/connection.mdx",
+        "docs/tables/index.mdx",
+        "docs/storage/index.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_mm_Connecting_to_a_Database_0_1",
+          "type": "code",
+          "content": "Python connect() function explicitly shows s3:// example in docstring: db = lancedb.connect(\"s3://my-bucket/lancedb\", storage_options={\"aws_access_key_id\": \"***\"}). Node.js connect() documentation lists s3://, gs:// formats with example.",
+          "citation": "python/python/lancedb/__init__.py:65-138 + nodejs/lancedb/index.ts:133-153",
+          "context": "LanceDB's connect() factory function routes to different connection types based on URI scheme"
+        },
+        {
+          "id": "ev_mm_Connecting_to_a_Database_0_2",
+          "type": "doc",
+          "content": "Connection snippets only show local path ('ex_lancedb') and cloud db:// examples. NO s3://, gs://, or az:// examples present in docs/snippets/connection.mdx.",
+          "citation": "docs/snippets/connection.mdx (validated)",
+          "context": "Object storage URIs are not shown in primary connection examples"
+        },
+        {
+          "id": "ev_mm_Connecting_to_a_Database_0_3",
+          "type": "doc",
+          "content": "Storage architecture page mentions S3/GCS/Azure support conceptually but lacks actual connection string examples (s3://, gs://, az://).",
+          "citation": "docs/storage/index.mdx (validated)",
+          "context": "Object storage support is documented but separated from main connection guide"
+        }
+      ],
+      "whyItMatters": "LOW - While not prominent in main connection docs, object storage URIs are documented in the storage/configuration page. Users can discover this feature through that documentation.",
+      "validationSteps": [
+        {
+          "id": "vs_mm_Connecting_to_a_Database_0_1",
+          "instruction": "Verify information in Storage",
+          "isChecked": false,
+          "link": {
+            "label": "Storage",
+            "url": "https://docs.lancedb.com/storage"
+          }
+        },
+        {
+          "id": "vs_mm_Connecting_to_a_Database_0_2",
+          "instruction": "Verify information in 3.1.2 Python Connection And Database Api",
+          "isChecked": false,
+          "link": {
+            "label": "3.1.2 Python Connection And Database Api",
+            "url": "https://deepwiki.com/lancedb/lancedb/3.1.2-python-connection-and-database-api"
+          }
+        },
+        {
+          "id": "vs_mm_Connecting_to_a_Database_0_3",
+          "instruction": "Verify information in Documentation",
+          "isChecked": false,
+          "link": {
+            "label": "Documentation",
+            "url": "https://lancedb.github.io/lancedb/guides/storage/"
+          }
+        },
+        {
+          "id": "vs_mm_Connecting_to_a_Database_0_fix",
+          "instruction": "Review suggested fix: The text was expanded to include the two other supported connection types: cloud object storage URIs and remote database URIs.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "Documented in storage/configuration page, but not prominent in main connection examples.",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "user_claude_validator",
+        "name": "Claude Validator",
+        "role": "ai_validator",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "LOW",
+        "confidence": 0.95,
+        "priority_score": 25,
+        "dimension": "understanding",
+        "issue_group": "concept_connecting_to_a_database",
+        "suggested_fix": "We start by connecting to a LanceDB database path. This can be a local file path, a cloud object storage URI (like `s3://`, `gs://`, or `az://`), or a remote LanceDB Cloud URI (`db://`).",
+        "has_code_changes": false,
+        "validated": true
+      }
+    },
+    {
+      "id": "mm_Rerankers_1",
+      "title": "ColBERT Reranker Missing Multivector Search Documentation",
+      "gap": "The ColBERT Reranker documentation only mentions Hybrid, Vector, and FTS search types, but omits multivector search support.",
+      "category": "undocumented",
+      "description": "The ColBERT reranker documentation describes support for Hybrid, Vector, and FTS search types, but completely omits that it supports multivector search. ColbertReranker inherits the rerank_multivector() method from the base Reranker class (via AnswerdotaiRerankers), enabling it to rerank results from multiple vector searches simultaneously. Users reading the ColBERT docs have no idea this powerful capability exists, missing out on the ability to combine results from multiple embeddings (e.g., text_vector + meta_vector) and rerank them together.",
+      "files": [
+        "python/python/lancedb/rerankers/base.py:157-217",
+        "python/python/lancedb/rerankers/colbert.py:8-38",
+        "python/python/lancedb/rerankers/answerdotai.py:10-30",
+        "python/python/tests/test_rerankers.py:194-208",
+        "docs/reranking/"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_mm_Rerankers_1_1",
+          "type": "code",
+          "content": "ColbertReranker inherits from AnswerdotaiRerankers which inherits from base Reranker class (colbert.py:8-38). The base Reranker class provides rerank_multivector() method (base.py:157-217) that accepts List[pa.Table] or List[LanceVectorQueryBuilder], concatenates multiple vector search results, and applies reranking. This means ColbertReranker automatically supports multivector search through inheritance.",
+          "citation": "python/python/lancedb/rerankers/colbert.py:8-38 + base.py:157-217 (validated via GitHub)",
+          "context": "Multivector support exists in code through inheritance but is not documented"
+        },
+        {
+          "id": "ev_mm_Rerankers_1_2",
+          "type": "doc",
+          "content": "ColBERT reranker documentation does not mention multivector search as a supported query type. The documentation only covers vector search, hybrid search, and FTS search types. The rerank_multivector() method is completely absent from the ColBERT documentation.",
+          "citation": "docs.lancedb.com/reranking (validated via WebFetch) - ColBERT section",
+          "context": "Multivector search capability is completely undocumented for ColBERT reranker"
+        },
+        {
+          "id": "ev_mm_Rerankers_1_3",
+          "type": "code",
+          "content": "Test suite confirms ColbertReranker successfully uses rerank_multivector() pattern in test_rerankers.py:194-208. Tests demonstrate: rs1 = table.search(query, vector_column_name='vector').limit(10).with_row_id(True); rs2 = table.search(query, vector_column_name='meta_vector').limit(10).with_row_id(True); result = reranker.rerank_multivector([rs1, rs2], query)",
+          "citation": "python/python/tests/test_rerankers.py:194-208 (validated via GitHub)",
+          "context": "Feature is tested and functional but not documented for users"
+        },
+        {
+          "id": "ev_mm_Rerankers_1_4",
+          "type": "doc",
+          "content": "General reranking documentation mentions multi-vector search exists and shows examples of passing multiple vector results. However, this is not connected to the ColBERT reranker documentation specifically. Users reading the ColBERT section would not discover this capability.",
+          "citation": "docs.lancedb.com/reranking (validated via WebFetch)",
+          "context": "Multivector feature exists in general docs but not in ColBERT-specific documentation"
+        },
+        {
+          "id": "ev_mm_Rerankers_1_5",
+          "type": "code",
+          "content": "The rerank_multivector() method requires .with_row_id(True) on search queries when using deduplicate=True parameter. This prevents duplicate rows when combining results from multiple vector searches. Without _rowid, raises ValueError: '_rowid is required for deduplication. add _rowid to search results like this: search().with_row_id(True)'",
+          "citation": "python/python/lancedb/rerankers/base.py:210-217 (validated via GitHub)",
+          "context": "Additional usage requirement that would need documentation"
+        }
+      ],
+      "whyItMatters": "CRITICAL - Multivector search is a powerful feature that allows combining results from multiple embeddings (e.g., title embeddings + content embeddings) and reranking them together with ColBERT. Users reading the ColBERT documentation have no indication this capability exists, missing out on a key use case for semantic search. The feature is fully implemented and tested but completely hidden from users.",
+      "validationSteps": [
+        {
+          "id": "vs_mm_Rerankers_1_1",
+          "instruction": "Verify ColBERT reranker docs do not mention multivector search",
+          "isChecked": false,
+          "link": {
+            "label": "ColBERT Reranking Documentation",
+            "url": "https://docs.lancedb.com/integrations/reranking/colbert"
+          }
+        },
+        {
+          "id": "vs_mm_Rerankers_1_2",
+          "instruction": "Check general reranking docs for multivector coverage",
+          "isChecked": false,
+          "link": {
+            "label": "Reranking Documentation",
+            "url": "https://docs.lancedb.com/integrations/reranking"
+          }
+        },
+        {
+          "id": "vs_mm_Rerankers_1_3",
+          "instruction": "Verify ColBERT reranker inherits multivector support from base class",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: colbert.py",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/lancedb/rerankers/colbert.py"
+          }
+        },
+        {
+          "id": "vs_mm_Rerankers_1_4",
+          "instruction": "Confirm rerank_multivector() method exists in base Reranker class",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: base.py",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/lancedb/rerankers/base.py"
+          }
+        },
+        {
+          "id": "vs_mm_Rerankers_1_5",
+          "instruction": "Review test examples showing ColBERT multivector usage",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: test_rerankers.py",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/tests/test_rerankers.py"
+          }
+        },
+        {
+          "id": "vs_mm_Rerankers_1_fix",
+          "instruction": "Review suggested fix: Add Multivector Search as fourth query type in ColBERT documentation with complete usage example.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "priority_score": 85,
+        "dimension": "completeness",
+        "issue_group": "reranking",
+        "suggested_fix": "Add 'Multivector Search' as a fourth supported search type in the ColBERT reranker documentation alongside Hybrid, Vector, and FTS. Include: (1) Explanation that ColBERT can rerank results from multiple vector searches simultaneously, (2) Use case: combining different embeddings (text_vector + meta_vector) for comprehensive semantic search, (3) Code example using rerank_multivector() method: rs1 = table.search(query, vector_column_name='vector').limit(10).with_row_id(True); rs2 = table.search(query, vector_column_name='meta_vector').limit(10).with_row_id(True); result = reranker.rerank_multivector([rs1, rs2], query, deduplicate=True), (4) Note that .with_row_id(True) is required when using deduplicate=True parameter.",
+        "has_code_changes": false,
+        "validated": false
+      }
+    },
+    {
+      "id": "mm_Multivector_Search_0",
+      "title": "XTR (ConteXtualized Token Retriever) Missing Implementation Details",
+      "gap": "LanceDB integrates with ConteXtualized Token Retriever (XTR), an advanced retrieval model that prioritizes the most semantically important document tokens during search.",
+      "category": "undocumented",
+      "description": "The multivector search documentation mentions that 'LanceDB also integrates with ConteXtualized Token Retriever (XTR)' but provides zero implementation details, code examples, or usage instructions. Users reading this see XTR exists but have no idea how to use it. The reality is that XTR requires: (1) VoyageAI API key, (2) voyage-context-3 model, (3) Optional contextualize() utility for creating text windows, (4) Understanding that XTR logic runs server-side on VoyageAI's infrastructure, not locally in LanceDB. None of this is documented, leaving users unable to adopt this 'advanced retrieval model' mentioned in the docs.",
+      "files": [
+        "python/python/lancedb/embeddings/voyageai.py",
+        "python/python/lancedb/context.py",
+        "python/python/tests/test_embeddings_slow.py",
+        "docs/search/multivector-search.mdx"
+      ],
+      "source": {
+        "type": "docs",
+        "url": "https://github.com/lancedb/lancedb"
+      },
+      "detectedDate": "2026-01-28T00:00:00.000Z",
+      "evidence": [
+        {
+          "id": "ev_mm_Multivector_Search_0_1",
+          "type": "doc",
+          "content": "Multivector search documentation mentions XTR exactly once: 'LanceDB also integrates with ConteXtualized Token Retriever (XTR), an advanced retrieval model that prioritizes the most semantically important document tokens during search.' No implementation details, code examples, setup instructions, or model requirements are provided.",
+          "citation": "docs.lancedb.com/search/multivector-search (validated via WebFetch)",
+          "context": "XTR is mentioned but completely undocumented in terms of actual usage"
+        },
+        {
+          "id": "ev_mm_Multivector_Search_0_2",
+          "type": "code",
+          "content": "XTR is implemented as a thin wrapper around VoyageAI's contextualized_embed() API in voyageai.py. Supports voyage-context-3 model. Code calls client.contextualized_embed(inputs=[[query]], model='voyage-context-3', input_type='query') for queries and client.contextualized_embed(inputs=[batch], model='voyage-context-3', input_type='document') for documents. All XTR logic happens server-side on VoyageAI's infrastructure, NOT in LanceDB.",
+          "citation": "python/python/lancedb/embeddings/voyageai.py (validated via GitHub search)",
+          "context": "Implementation exists but requires VoyageAI API key - not mentioned in docs"
+        },
+        {
+          "id": "ev_mm_Multivector_Search_0_3",
+          "type": "code",
+          "content": "Optional context.py provides contextualize() utility for creating text windows: contextualize(df).window(3).stride(1).text_col('token').groupby('doc_id').to_pandas(). This is a text preprocessing tool separate from the XTR embedding process. Creates rolling windows like 'The quick brown', 'quick brown fox', etc. by joining adjacent rows with spaces.",
+          "citation": "python/python/lancedb/context.py (validated via GitHub search)",
+          "context": "Context window utility exists but connection to XTR is not documented"
+        },
+        {
+          "id": "ev_mm_Multivector_Search_0_4",
+          "type": "code",
+          "content": "Test coverage in test_embeddings_slow.py only verifies basic functionality: that voyage-context-3 generates embeddings with correct dimensions. No examples of XTR usage patterns, context window integration, or best practices for contextual embeddings.",
+          "citation": "python/python/tests/test_embeddings_slow.py (validated via GitHub search)",
+          "context": "Tests exist but don't demonstrate practical XTR usage for documentation"
+        },
+        {
+          "id": "ev_mm_Multivector_Search_0_5",
+          "type": "limitation",
+          "content": "XTR has NO local implementation in LanceDB - it's purely a VoyageAI API wrapper. Users must: (1) Have VOYAGE_API_KEY environment variable or API key, (2) Use voyage-context-3 model specifically, (3) Understand inputs must be nested lists: inputs=[[text]], (4) Know that contextualize() utility is optional and separate from embedding generation. These requirements are completely undocumented.",
+          "citation": "GitHub code analysis: voyageai.py + context.py + tests",
+          "context": "Critical setup requirements missing from documentation"
+        }
+      ],
+      "whyItMatters": "CRITICAL - Documentation teases XTR as an 'advanced retrieval model' but provides zero information on how to actually use it. Users cannot adopt this feature without: VoyageAI API setup, knowing the specific model name (voyage-context-3), understanding the API wrapper pattern, and optionally learning the contextualize() utility. The gap between 'XTR exists' and 'how to use XTR' is complete - there's literally one sentence mentioning it exists with no follow-up.",
+      "validationSteps": [
+        {
+          "id": "vs_mm_Multivector_Search_0_1",
+          "instruction": "Verify XTR mentioned but not explained in multivector docs",
+          "isChecked": false,
+          "link": {
+            "label": "Multivector Search Documentation",
+            "url": "https://docs.lancedb.com/search/multivector-search"
+          }
+        },
+        {
+          "id": "vs_mm_Multivector_Search_0_2",
+          "instruction": "Check if VoyageAI contextual embeddings are documented",
+          "isChecked": false,
+          "link": {
+            "label": "VoyageAI Embeddings",
+            "url": "https://docs.lancedb.com/integrations/embedding/voyageai"
+          }
+        },
+        {
+          "id": "vs_mm_Multivector_Search_0_3",
+          "instruction": "Verify VoyageAI API wrapper implementation",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: voyageai.py",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/lancedb/embeddings/voyageai.py"
+          }
+        },
+        {
+          "id": "vs_mm_Multivector_Search_0_4",
+          "instruction": "Check contextualize() utility documentation",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: context.py",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/lancedb/context.py"
+          }
+        },
+        {
+          "id": "vs_mm_Multivector_Search_0_5",
+          "instruction": "Review test examples for XTR usage patterns",
+          "isChecked": false,
+          "link": {
+            "label": "GitHub: test_embeddings_slow.py",
+            "url": "https://github.com/lancedb/lancedb/blob/main/python/python/tests/test_embeddings_slow.py"
+          }
+        },
+        {
+          "id": "vs_mm_Multivector_Search_0_fix",
+          "instruction": "Review suggested fix: Add comprehensive XTR section with VoyageAI setup, voyage-context-3 usage, optional contextualize() utility, and complete code examples.",
+          "isChecked": false,
+          "link": null
+        }
+      ],
+      "status": "detected",
+      "assignedTo": {
+        "id": "user_unassigned",
+        "name": "Unassigned",
+        "role": "unassigned",
+        "avatar": null
+      },
+      "verdict": null,
+      "verdictReason": "",
+      "comments": [],
+      "linearIssue": null,
+      "createdBy": {
+        "id": "oqoqo",
+        "name": "Oqoqo",
+        "role": "reviewer",
+        "avatar": null
+      },
+      "metadata": {
+        "severity": "CRITICAL",
+        "confidence": 0.95,
+        "priority_score": 85,
+        "dimension": "completeness",
+        "issue_group": "multivector_search",
+        "suggested_fix": "Add a dedicated 'XTR Integration' section to the multivector search documentation including: (1) Overview: XTR uses VoyageAI's voyage-context-3 model for contextual embeddings where each token's embedding considers surrounding context, (2) Setup: Requires VOYAGE_API_KEY and VoyageAI account, (3) Code example showing basic usage: embedder = get_registry().get('voyageai').create(name='voyage-context-3'); schema with embeddings, (4) Optional: contextualize() utility for creating text windows: contextualize(df).window(3).stride(1).text_col('text').to_pandas(), (5) Note that XTR processing happens on VoyageAI's servers, not locally, (6) Integration with multivector search patterns.",
+        "has_code_changes": false,
+        "validated": false
+      }
+    }
+  ]
+}

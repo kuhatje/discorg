@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Graph } from "@/lib/types";
 import {
   DiscordSampleConfig,
   listDiscordExportFiles,
   parseDiscordExportFile,
   sampleDiscordMessages,
 } from "@/lib/discord";
+import { buildKnowledgeResponse } from "@/lib/knowledge";
+import { loadOqoqoDocAnalyzerContext } from "@/lib/oqoqo";
 import {
-  buildTicketPrompt,
+  createEmptyDiscordKnowledgeStore,
+  loadDiscordKnowledgeStore,
+  mergeDiscordKnowledge,
+  saveDiscordKnowledgeStore,
+} from "@/lib/persist";
+import {
   buildTicketsFromMessages,
   refineTicketsWithLLM,
-  ticketWeight,
 } from "@/lib/tickets";
 
 type IngestPayload = DiscordSampleConfig & {
@@ -22,6 +27,11 @@ type IngestPayload = DiscordSampleConfig & {
   model?: string;
   llmTicketLimit?: number;
   llmMaxInputChars?: number;
+  persist?: boolean;
+  persistMode?: "append" | "replace";
+  includeOqoqoContext?: boolean;
+  oqoqoMaxIssues?: number;
+  oqoqoMaxChars?: number;
 };
 
 export async function POST(req: NextRequest) {
@@ -61,7 +71,27 @@ export async function POST(req: NextRequest) {
     windowMinutes: body.windowMinutes,
   });
 
-  let tickets = baseTickets;
+  let oqoqoContextSummary = "";
+  let oqoqoContextError: string | undefined;
+  let oqoqoContextIncluded = false;
+  if (body.includeOqoqoContext) {
+    const oqoqo = await loadOqoqoDocAnalyzerContext({
+      maxIssues: body.oqoqoMaxIssues,
+      maxChars: body.oqoqoMaxChars,
+    });
+    oqoqoContextSummary = oqoqo.summary;
+    oqoqoContextIncluded = Boolean(oqoqo.summary);
+    oqoqoContextError = oqoqo.error;
+  }
+
+  const persist = body.persist !== false;
+  const persistMode = body.persistMode ?? "append";
+  const stored = persist ? await loadDiscordKnowledgeStore() : null;
+
+  // If a ticket already exists in the store, reuse it to avoid re-paying LLM costs.
+  const knownTicketsById = stored?.ticketsById ?? {};
+  let tickets = baseTickets.map((ticket) => knownTicketsById[ticket.id] ?? ticket);
+
   if (body.useLLM) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -71,42 +101,67 @@ export async function POST(req: NextRequest) {
       );
     }
     const model = body.model ?? "gpt-4o-mini";
-    tickets = await refineTicketsWithLLM(tickets, ticketSources, {
-      apiKey,
-      model,
-      maxTickets: body.llmTicketLimit,
-      maxInputChars: body.llmMaxInputChars,
-    });
+    const knownIds = new Set(Object.keys(knownTicketsById));
+    const toRefine = tickets.filter((t) => !knownIds.has(t.id));
+    if (toRefine.length > 0) {
+      const { tickets: refinedNew, stats } = await refineTicketsWithLLM(toRefine, ticketSources, {
+        apiKey,
+        model,
+        maxTickets: body.llmTicketLimit,
+        maxInputChars: body.llmMaxInputChars,
+        extraContext: oqoqoContextSummary || undefined,
+      });
+      if (toRefine.length > 0 && stats.succeeded === 0) {
+        return NextResponse.json(
+          {
+            error: "LLM refinement produced no successful tickets.",
+            details: stats,
+          },
+          { status: 502 },
+        );
+      }
+      const refinedMap = new Map(refinedNew.map((t) => [t.id, t] as const));
+      tickets = tickets.map((t) => refinedMap.get(t.id) ?? t);
+    }
   }
 
-  const chunks = tickets.reduce<Graph["chunks"]>((acc, ticket) => {
-    const evidenceStart = ticket.evidence[0]?.timestamp;
-    const evidenceEnd = ticket.evidence[ticket.evidence.length - 1]?.timestamp;
-    acc[ticket.id] = {
-      id: ticket.id,
-      title: ticket.title,
-      summary: ticket.summary,
-      sourceType: "discord:ticket",
-      sourceRef: ticket.evidence[0]?.url,
-      weight: ticketWeight(ticket),
-      component: ticket.channel,
-      tags: ticket.tags,
-      createdAt: evidenceStart,
-      updatedAt: evidenceEnd,
-      ticket,
-    };
-    return acc;
-  }, {});
+  let knowledgeTickets = tickets;
+  let knowledgeEdges = edges;
+  let updatedAt: string | undefined;
+  let newTicketsAdded: number | undefined;
 
-  const graph: Graph = { chunks, edges };
-  const prompt = buildTicketPrompt(tickets);
+  if (persist) {
+    const baseStore =
+      persistMode === "replace"
+        ? createEmptyDiscordKnowledgeStore()
+        : stored ?? createEmptyDiscordKnowledgeStore();
+    const prevCount = Object.keys(baseStore.ticketsById).length;
+    const merged = mergeDiscordKnowledge(baseStore, { tickets, edges });
+    await saveDiscordKnowledgeStore(merged);
+    knowledgeTickets = Object.values(merged.ticketsById);
+    knowledgeEdges = merged.edges;
+    updatedAt = merged.updatedAt;
+    newTicketsAdded = Object.keys(merged.ticketsById).length - prevCount;
+  }
+
+  const knowledge = buildKnowledgeResponse(knowledgeTickets, knowledgeEdges, updatedAt);
+  const evidenceMessageCount = knowledge.messageCount;
+  const prompt = oqoqoContextSummary
+    ? `${knowledge.prompt}\n\nDoc-analyzer context (~/Desktop/oqoqo):\n${oqoqoContextSummary}`
+    : knowledge.prompt;
 
   return NextResponse.json({
     channels: selected.map((meta) => meta.label),
-    messageCount: sampled.length,
-    ticketCount: tickets.length,
-    graph,
-    tickets,
+    messageCount: evidenceMessageCount,
+    sampledMessageCount: sampled.length,
+    evidenceMessageCount,
+    ticketCount: knowledge.ticketCount,
+    graph: knowledge.graph,
+    tickets: knowledge.tickets,
     prompt,
+    oqoqoContextIncluded,
+    oqoqoContextError,
+    updatedAt,
+    newTicketsAdded,
   });
 }
